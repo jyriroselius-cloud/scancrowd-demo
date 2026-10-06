@@ -1,0 +1,19 @@
+{
+  "name": "Vantaa",
+  "lat": 60.2934,
+  "lon": 25.0378,
+  "streets": [
+    {"name": "Tikkurilantie", "lat": 60.2930, "lon": 25.0370},
+    {"name": "Hämeenlinnanväylä", "lat": 60.3200, "lon": 24.9500},
+    {"name": "Kehä III", "lat": 60.2800, "lon": 25.0000},
+    {"name": "Myyrmäentie", "lat": 60.2600, "lon": 24.8600},
+    {"name": "Havukoskentie", "lat": 60.3300, "lon": 25.0500},
+    {"name": "Koivukylänväylä", "lat": 60.3100, "lon": 25.1000},
+    {"name": "Kielotie", "lat": 60.2620, "lon": 24.8570},
+    {"name": "Rälssitie", "lat": 60.2720, "lon": 24.8440},
+    {"name": "Unikkotie", "lat": 60.2660, "lon": 24.8590},
+    {"name": "Peltolantie", "lat": 60.3000, "lon": 25.0500},
+    {"name": "Martinkyläntie", "lat": 60.2750, "lon": 24.9000},
+    {"name": "Lummetie", "lat": 60.2630, "lon": 24.8550}
+  ]
+}

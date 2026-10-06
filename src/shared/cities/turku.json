@@ -1,0 +1,21 @@
+{
+  "name": "Turku",
+  "lat": 60.4518,
+  "lon": 22.2666,
+  "streets": [
+    {"name": "Yliopistonkatu", "lat": 60.4520, "lon": 22.2650},
+    {"name": "Aurakatu", "lat": 60.4510, "lon": 22.2700},
+    {"name": "Eerikinkatu", "lat": 60.4490, "lon": 22.2660},
+    {"name": "Humalistonkatu", "lat": 60.4540, "lon": 22.2590},
+    {"name": "Läntinen Pitkäkatu", "lat": 60.4460, "lon": 22.2500},
+    {"name": "Brahenkatu", "lat": 60.4530, "lon": 22.2700},
+    {"name": "Hämeenkatu", "lat": 60.4500, "lon": 22.2630},
+    {"name": "Linnankatu", "lat": 60.4440, "lon": 22.2380},
+    {"name": "Itäinen Rantakatu", "lat": 60.4490, "lon": 22.2740},
+    {"name": "Läntinen Rantakatu", "lat": 60.4490, "lon": 22.2540},
+    {"name": "Kupittaankatu", "lat": 60.4560, "lon": 22.2950},
+    {"name": "Rautatienkatu", "lat": 60.4570, "lon": 22.2790},
+    {"name": "Martinkatu", "lat": 60.4540, "lon": 22.2640},
+    {"name": "Puolalankatu", "lat": 60.4470, "lon": 22.2600}
+  ]
+}

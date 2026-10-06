@@ -1,0 +1,27 @@
+{
+  "name": "Helsinki",
+  "lat": 60.1699,
+  "lon": 24.9384,
+  "streets": [
+    {"name": "Mannerheimintie", "lat": 60.1740, "lon": 24.9260},
+    {"name": "Aleksanterinkatu", "lat": 60.1690, "lon": 24.9440},
+    {"name": "Esplanadi", "lat": 60.1674, "lon": 24.9430},
+    {"name": "Fleminginkatu", "lat": 60.1820, "lon": 24.9490},
+    {"name": "Unioninkatu", "lat": 60.1700, "lon": 24.9490},
+    {"name": "Hämeentie", "lat": 60.1870, "lon": 24.9550},
+    {"name": "Sörnäisten rantatie", "lat": 60.1840, "lon": 24.9650},
+    {"name": "Kalliokatu", "lat": 60.1860, "lon": 24.9490},
+    {"name": "Sturenkatu", "lat": 60.1900, "lon": 24.9500},
+    {"name": "Itäväylä", "lat": 60.2000, "lon": 25.0200},
+    {"name": "Herttoniementie", "lat": 60.2050, "lon": 25.0300},
+    {"name": "Bulevardi", "lat": 60.1640, "lon": 24.9380},
+    {"name": "Runeberginkatu", "lat": 60.1720, "lon": 24.9250},
+    {"name": "Töölönkatu", "lat": 60.1760, "lon": 24.9270},
+    {"name": "Paasivuorenkatu", "lat": 60.1820, "lon": 24.9560},
+    {"name": "Pitkäsilta", "lat": 60.1795, "lon": 24.9487},
+    {"name": "Kaisaniemenkatu", "lat": 60.1730, "lon": 24.9460},
+    {"name": "Siltasaarenkatu", "lat": 60.1810, "lon": 24.9520},
+    {"name": "Vilhonkatu", "lat": 60.1680, "lon": 24.9500},
+    {"name": "Fredrikinkatu", "lat": 60.1640, "lon": 24.9290}
+  ]
+}

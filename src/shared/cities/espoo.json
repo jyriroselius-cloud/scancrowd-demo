@@ -1,0 +1,22 @@
+{
+  "name": "Espoo",
+  "lat": 60.2052,
+  "lon": 24.6554,
+  "streets": [
+    {"name": "Espoonkatu", "lat": 60.2030, "lon": 24.6540},
+    {"name": "Tapiolantie", "lat": 60.1820, "lon": 24.8050},
+    {"name": "Kehä I", "lat": 60.2150, "lon": 24.7500},
+    {"name": "Turuntie", "lat": 60.2200, "lon": 24.6000},
+    {"name": "Länsiväylä", "lat": 60.1800, "lon": 24.7800},
+    {"name": "Piispansilta", "lat": 60.1850, "lon": 24.8200},
+    {"name": "Leppävaarankatu", "lat": 60.2170, "lon": 24.8130},
+    {"name": "Merituulentie", "lat": 60.1650, "lon": 24.7400},
+    {"name": "Otaniementie", "lat": 60.1870, "lon": 24.8310},
+    {"name": "Niittykumpu", "lat": 60.1730, "lon": 24.8060},
+    {"name": "Sokinvuorenkatu", "lat": 60.2050, "lon": 24.6580},
+    {"name": "Ainontie", "lat": 60.2080, "lon": 24.6620},
+    {"name": "Gallen-Kallelankatu", "lat": 60.2100, "lon": 24.6550},
+    {"name": "Matinkatu", "lat": 60.1620, "lon": 24.7350},
+    {"name": "Piilipuuntie", "lat": 60.2300, "lon": 24.6700}
+  ]
+}

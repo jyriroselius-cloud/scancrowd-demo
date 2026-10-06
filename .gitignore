@@ -1,0 +1,10 @@
+node_modules/
+app/node_modules/
+console/node_modules/
+app/dist/
+console/dist/
+app/android/
+*.jks
+*.keystore
+.DS_Store
+*.local

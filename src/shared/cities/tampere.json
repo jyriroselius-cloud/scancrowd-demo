@@ -1,0 +1,27 @@
+{
+  "name": "Tampere",
+  "lat": 61.4978,
+  "lon": 23.7616,
+  "streets": [
+    {"name": "Hämeenkatu", "lat": 61.4977, "lon": 23.7580},
+    {"name": "Satakunnankatu", "lat": 61.4990, "lon": 23.7640},
+    {"name": "Itsenäisyydenkatu", "lat": 61.4955, "lon": 23.7700},
+    {"name": "Sammonkatu", "lat": 61.5010, "lon": 23.7650},
+    {"name": "Pyynikintie", "lat": 61.4900, "lon": 23.7350},
+    {"name": "Kalevantie", "lat": 61.5030, "lon": 23.7760},
+    {"name": "Hervannan valtaväylä", "lat": 61.4500, "lon": 23.8500},
+    {"name": "Pispalan valtatie", "lat": 61.5070, "lon": 23.7200},
+    {"name": "Teiskontie", "lat": 61.5100, "lon": 23.7900},
+    {"name": "Paasikiventie", "lat": 61.4960, "lon": 23.8000},
+    {"name": "Lempäälänkatu", "lat": 61.4850, "lon": 23.7800},
+    {"name": "Yliopistokatu", "lat": 61.4940, "lon": 23.7610},
+    {"name": "Ratinanniemi", "lat": 61.4870, "lon": 23.7710},
+    {"name": "Kehräsaari", "lat": 61.4880, "lon": 23.7680},
+    {"name": "Aleksanterinkatu", "lat": 61.4980, "lon": 23.7570},
+    {"name": "Hatanpään valtatie", "lat": 61.4800, "lon": 23.7600},
+    {"name": "Kekkosentie", "lat": 61.5200, "lon": 23.7400},
+    {"name": "Hallituskatu", "lat": 61.4990, "lon": 23.7590},
+    {"name": "Puutarhakatu", "lat": 61.5000, "lon": 23.7620},
+    {"name": "Viinikankatu", "lat": 61.4880, "lon": 23.7790}
+  ]
+}

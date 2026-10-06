@@ -1,0 +1,15 @@
+{
+  "name": "scancrowd-demo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["app", "console"],
+  "scripts": {
+    "dev:console": "npm -w console run dev",
+    "dev:app": "npm -w app run dev",
+    "build:console": "npm -w console run build",
+    "build:app": "npm -w app run build",
+    "build:all": "npm -w console run build && npm -w app run build",
+    "add-city": "node scripts/add-city.mjs"
+  },
+  "devDependencies": {}
+}

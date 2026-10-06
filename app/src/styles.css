@@ -1,0 +1,49 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg: #0c1d24;
+  --surface: #132a33;
+  --raised: #1a3540;
+  --line: #2a4650;
+  --tabbar: #0a1920;
+  --mint: #3ddc97;
+  --mint-text: #06291b;
+  --text: #ffffff;
+  --text2: #a9b8bd;
+  --text3: #c9d3d6;
+  --new: #9aa7ab;
+  --accepted: #5aa9ff;
+  --repair: #ffb547;
+  --fixed: #3ddc97;
+  --declined: #ff6b6b;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Manrope, system-ui, sans-serif;
+  overflow: hidden;
+  height: 100dvh;
+}
+
+#root {
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
+button { cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

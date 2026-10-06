@@ -1,0 +1,19 @@
+{
+  "name": "Jyväskylä",
+  "lat": 62.2426,
+  "lon": 25.7473,
+  "streets": [
+    {"name": "Kauppakatu", "lat": 62.2424, "lon": 25.7460},
+    {"name": "Väinönkatu", "lat": 62.2440, "lon": 25.7480},
+    {"name": "Asemakatu", "lat": 62.2450, "lon": 25.7520},
+    {"name": "Kilpisenkatu", "lat": 62.2410, "lon": 25.7440},
+    {"name": "Vapaudenkatu", "lat": 62.2420, "lon": 25.7490},
+    {"name": "Pitkäkatu", "lat": 62.2400, "lon": 25.7430},
+    {"name": "Yrjönkatu", "lat": 62.2430, "lon": 25.7470},
+    {"name": "Seminaarinkatu", "lat": 62.2390, "lon": 25.7470},
+    {"name": "Hannikaisenkatu", "lat": 62.2440, "lon": 25.7550},
+    {"name": "Gummeruksenkatu", "lat": 62.2460, "lon": 25.7490},
+    {"name": "Matarankatu", "lat": 62.2430, "lon": 25.7520},
+    {"name": "Cygnaeuksenkatu", "lat": 62.2450, "lon": 25.7450}
+  ]
+}

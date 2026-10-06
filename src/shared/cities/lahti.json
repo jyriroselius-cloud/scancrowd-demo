@@ -1,0 +1,17 @@
+{
+  "name": "Lahti",
+  "lat": 60.9827,
+  "lon": 25.6612,
+  "streets": [
+    {"name": "Aleksanterinkatu", "lat": 60.9820, "lon": 25.6600},
+    {"name": "Hämeenkatu", "lat": 60.9830, "lon": 25.6620},
+    {"name": "Mariankatu", "lat": 60.9840, "lon": 25.6570},
+    {"name": "Vesijärvenkatu", "lat": 60.9810, "lon": 25.6640},
+    {"name": "Kirkkokatu", "lat": 60.9800, "lon": 25.6590},
+    {"name": "Rautatienkatu", "lat": 60.9850, "lon": 25.6650},
+    {"name": "Mukkulankatu", "lat": 61.0000, "lon": 25.6500},
+    {"name": "Paavonkatu", "lat": 60.9790, "lon": 25.6550},
+    {"name": "Radiokatu", "lat": 60.9870, "lon": 25.6700},
+    {"name": "Vapaudenkatu", "lat": 60.9820, "lon": 25.6580}
+  ]
+}

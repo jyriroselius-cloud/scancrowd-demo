@@ -1,0 +1,17 @@
+{
+  "name": "Kuopio",
+  "lat": 62.8924,
+  "lon": 27.6770,
+  "streets": [
+    {"name": "Kauppakatu", "lat": 62.8930, "lon": 27.6780},
+    {"name": "Haapaniemenkatu", "lat": 62.8920, "lon": 27.6800},
+    {"name": "Minna Canthinkatu", "lat": 62.8940, "lon": 27.6760},
+    {"name": "Tulliportinkatu", "lat": 62.8910, "lon": 27.6810},
+    {"name": "Snellmaninaukio", "lat": 62.8950, "lon": 27.6770},
+    {"name": "Asemakatu", "lat": 62.8990, "lon": 27.6820},
+    {"name": "Piispankatu", "lat": 62.8930, "lon": 27.6740},
+    {"name": "Vuorikatu", "lat": 62.8900, "lon": 27.6730},
+    {"name": "Puistokatu", "lat": 62.8920, "lon": 27.6750},
+    {"name": "Maaherrankatu", "lat": 62.8910, "lon": 27.6770}
+  ]
+}

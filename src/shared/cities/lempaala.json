@@ -1,0 +1,17 @@
+{
+  "name": "Lempäälä",
+  "lat": 61.3158,
+  "lon": 23.7526,
+  "streets": [
+    {"name": "Lempääläntie", "lat": 61.3160, "lon": 23.7530},
+    {"name": "Asemakatu", "lat": 61.3140, "lon": 23.7510},
+    {"name": "Tampereentie", "lat": 61.3200, "lon": 23.7480},
+    {"name": "Laukkalanmäentie", "lat": 61.3100, "lon": 23.7600},
+    {"name": "Ideaparkintie", "lat": 61.3050, "lon": 23.8050},
+    {"name": "Sompasaarentie", "lat": 61.3170, "lon": 23.7550},
+    {"name": "Isosuontie", "lat": 61.3300, "lon": 23.7400},
+    {"name": "Kulhontie", "lat": 61.3120, "lon": 23.7560},
+    {"name": "Kuokkalantie", "lat": 61.3080, "lon": 23.7700},
+    {"name": "Vuorentaustantie", "lat": 61.3230, "lon": 23.7450}
+  ]
+}
