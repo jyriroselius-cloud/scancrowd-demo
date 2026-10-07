@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { Issue, Category, GeneratedData, CityData } from '@shared/types';
-import MapSvg from '../components/MapSvg';
+import type { Issue, Category, GeneratedData, CityData, StreetPoint } from '@shared/types';
+import AppMap from '../components/AppMap';
 import TabBar from '../components/TabBar';
 import StatusPill from '../components/StatusPill';
 
@@ -15,6 +15,7 @@ interface Props {
   onLeaderboard: () => void;
   onSettings: () => void;
   onReset: () => void;
+  onStreetsReady?: (streets: StreetPoint[]) => void;
 }
 
 const CATEGORY_ICON: Record<Category, React.ReactNode> = {
@@ -55,26 +56,11 @@ const CATEGORY_ICON: Record<Category, React.ReactNode> = {
   ),
 };
 
-export default function Home({ generated, cityData, userReports, points, onCapture, onIssueSelect, onActivity, onLeaderboard, onSettings, onReset }: Props) {
-  const [userLat, setUserLat] = useState<number | undefined>(undefined);
-  const [userLon, setUserLon] = useState<number | undefined>(undefined);
+export default function Home({ generated, cityData, userReports, points, onCapture, onIssueSelect, onActivity, onLeaderboard, onSettings, onReset, onStreetsReady }: Props) {
   const [filter, setFilter] = useState<Category | 'All'>('All');
   const [resetConfirm, setResetConfirm] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        const pos = await Geolocation.getCurrentPosition({ timeout: 5000 });
-        setUserLat(pos.coords.latitude);
-        setUserLon(pos.coords.longitude);
-      } catch {
-        // use city center as fallback
-      }
-    })();
-  }, []);
 
   const allIssues = [...generated.issues, ...userReports];
   const filtered = filter === 'All' ? allIssues : allIssues.filter(i => i.category === filter);
@@ -106,18 +92,13 @@ export default function Home({ generated, cityData, userReports, points, onCaptu
   return (
     <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#0e2229', fontFamily: 'Manrope, system-ui, sans-serif', color: '#ffffff' }}>
       {/* Full-screen map */}
-      <div style={{ position: 'absolute', inset: 0 }}>
-        <MapSvg
-          issues={allIssues}
-          userLat={userLat}
-          userLon={userLon}
-          centerLat={cityData.lat}
-          centerLon={cityData.lon}
-          width={window.innerWidth || 390}
-          height={window.innerHeight || 760}
-          onIssueTap={onIssueSelect}
-        />
-      </div>
+      <AppMap
+        issues={allIssues}
+        centerLat={cityData.lat}
+        centerLon={cityData.lon}
+        onStreetsReady={onStreetsReady}
+        onIssueTap={onIssueSelect}
+      />
 
       {/* Top bar */}
       <div style={{ position: 'absolute', left: 16, right: 16, top: 20, display: 'flex', flexDirection: 'column', gap: 10, zIndex: 10 }}>

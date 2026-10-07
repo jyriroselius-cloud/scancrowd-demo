@@ -93,3 +93,24 @@ versionCode 10
 
 ### Fixed
 - **Map markers always visible:** Map now centers on the demo city (Tampere) regardless of the user's real GPS location. Previously `centerLat/Lon` was set to the GPS position, so all Tampere-based issues projected off-screen when the user is in a different city. GPS is now used only for the "you are here" dot.
+
+## [0.2.0] — 2026-10-07
+versionCode 11
+
+### Added
+- **Location-driven data**: app and console centre on GPS/browser position; issues are generated from that location using a deterministic seed (lat/lon rounded to 0.01° ≈ 1 km grid)
+- **Real street names from map tiles**: after the MapLibre map loads, `querySourceFeatures('openmaptiles', {sourceLayer:'transportation_name'})` extracts named roads within 1.5 km and feeds them to the generator — no extra API calls
+- **`src/shared/locationSeed.ts`**: `locationSeed(lat, lon)` produces same integer for any position within the same grid cell; shared between app and console
+- **`src/shared/extractStreets.ts`**: pure function parsing MapLibre feature arrays into StreetPoints; filters to residential/tertiary/secondary, excludes motorways/rail, deduplicates by name
+- **App: MapLibre map** (`AppMap.tsx`) replaces SVG grid; falls back to SVG on tile failure; issue markers as coloured circles
+- **App: city picker** (`CityPicker.tsx`) shown when location permission is denied
+- **App: GPS watch**: moves > 1 km trigger regeneration with new location seed
+- **Console: browser geolocation** on load; "Use my location" button; `?city=` and `?lat=&lon=` URL overrides still work
+- **Console: city picker dropdown** when location denied
+- **`ConsoleMap` uses `LiveMap`** (real tiles) instead of FallbackMap
+
+### Tests
+- 9 Playwright tests: Vesilahti / Hagfors / Brno with mocked geolocation, reload determinism, location denied fallback, tiles blocked fallback, seed function unit test — all pass
+
+### APK
+- Signed release APK `scancrowd-demo-0.2.0.apk` ready for real-phone test

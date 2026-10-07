@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import type { GeneratedData, CityData, Issue } from '@shared/types';
+import type { GeneratedData, CityData, Issue, StreetPoint } from '@shared/types';
 import type { Status } from '@shared/types';
-import { FallbackMap } from '../components/FallbackMap';
+import { LiveMap } from '../components/LiveMap';
 import { StatusPill } from '../components/StatusPill';
 
 interface Props {
   data: GeneratedData;
   cityData: CityData;
   onOpenIssue: (issue: Issue) => void;
+  onStreetsReady?: (streets: StreetPoint[]) => void;
 }
 
 const STATUSES: Status[] = ['New', 'Accepted', 'Planned', 'In repair', 'Fixed', 'Declined'];
 
-export function ConsoleMap({ data, cityData, onOpenIssue }: Props) {
+export function ConsoleMap({ data, cityData, onOpenIssue, onStreetsReady }: Props) {
   const [activeStatuses, setActiveStatuses] = useState<Set<Status>>(
-    new Set(['New', 'Accepted', 'Planned', 'In repair'])
+    new Set(['New', 'Accepted', 'Planned', 'In repair']),
   );
 
   function toggle(s: Status) {
@@ -49,11 +50,14 @@ export function ConsoleMap({ data, cityData, onOpenIssue }: Props) {
         ))}
       </div>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, overflow: 'hidden' }}>
-        <FallbackMap
+        <LiveMap
           issues={visible}
           centerLat={cityData.lat}
           centerLon={cityData.lon}
           height={560}
+          zoom={14}
+          onClickIssue={onOpenIssue}
+          onStreetsReady={onStreetsReady}
         />
       </div>
       <div style={{ font: '600 13px Manrope, sans-serif', color: 'var(--text2)' }}>{visible.length} issues shown</div>

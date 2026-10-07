@@ -3,6 +3,8 @@
 **Duration:** 5–7 minutes  
 **Setup:** Fresh install or reset (long-press logo → confirm)
 
+> **Location note:** The app and console centre on the device's current GPS position automatically. No city needs to be pre-configured. You can demo anywhere. Use `?city=Tampere` or `?lat=61.50&lon=23.76` as URL overrides to show a specific city.
+
 ---
 
 ## Step 1 — Welcome & permissions (30 s)
@@ -19,7 +21,7 @@ Tap **Get started** and grant all three permissions (location, camera, notificat
 
 ## Step 2 — Explore the map (1 min)
 
-The map shows nearby open issues with coloured pins.
+The map loads at your current GPS position and shows nearby open issues with coloured pins on real map tiles.
 
 - Zoom in on a cluster of pins.
 - Tap an issue pin to open the **Issue Tracking** screen.
@@ -27,6 +29,8 @@ The map shows nearby open issues with coloured pins.
 - Show the timeline: city staff accepted it, assigned a repair week.
 
 **Talking points:**
+- "The issues are seeded from your exact position — the same location always shows the same data, so the demo is reproducible."
+- "On first load, street names are read directly from the map tiles. No separate data source is needed."
 - "Every issue has a full audit trail — who reported it, when it was accepted, when it was fixed."
 - "Citizens get push notifications at each stage without needing an account."
 
@@ -76,6 +80,20 @@ Tap **Ranks** in the tab bar.
 **Talking points:**
 - "Gamification drives repeat reporting. Cities that run seasonal competitions see 3–5× more submissions."
 - "The leaderboard is city-scoped — keeps the competition local and meaningful."
+
+---
+
+## Console demo (parallel or follow-up)
+
+Open the console URL in a browser on your laptop. It requests your browser location automatically and centres on your current position. The same seed logic means the phone and laptop show the same issue IDs and street names.
+
+- **Work queue**: triage incoming reports, accept or decline.
+- **Map**: filter by status, click pins to open full issue detail.
+- **Leaderboard**: month/season rankings with top-reporter podium.
+
+URL overrides for presenting a specific city:
+- `?city=Helsinki` — use a bundled city by name
+- `?lat=60.17&lon=24.94&name=Helsinki` — exact coordinates
 
 ---
 

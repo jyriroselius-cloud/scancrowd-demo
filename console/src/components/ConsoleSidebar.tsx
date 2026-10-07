@@ -7,6 +7,7 @@ interface Props {
   setScreen: (s: Screen) => void;
   queueCount: number;
   onReset: () => void;
+  headerSlot?: React.ReactNode;
 }
 
 const NAV: { id: Screen | 'contractors' | 'missions' | 'analytics' | 'settings'; label: string }[] = [
@@ -21,7 +22,7 @@ const NAV: { id: Screen | 'contractors' | 'missions' | 'analytics' | 'settings';
 
 const ACTIVE_SCREENS: Screen[] = ['queue', 'issue', 'map', 'leaderboard'];
 
-export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onReset }: Props) {
+export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onReset, headerSlot }: Props) {
   return (
     <nav
       aria-label="Console"
@@ -46,6 +47,7 @@ export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onRese
           City of {cityName} · Street maintenance
         </div>
       </div>
+      {headerSlot && <div>{headerSlot}</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {NAV.map((item) => {

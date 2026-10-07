@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { defaultCity } from '@shared/cities';
 import { generateData } from '@shared/generator';
+import { locationSeed, haversineKm } from '@shared/locationSeed';
 import {
   loadReports, saveReports, loadPoints, savePoints,
   loadDemoSpeed, saveDemoSpeed, loadNickname, clearAll,
 } from './lib/storage';
-import type { Issue, Category, GeneratedData, CityData } from '@shared/types';
+import type { Issue, Category, GeneratedData, CityData, StreetPoint } from '@shared/types';
 import type { DemoSpeed } from './lib/storage';
 
 import Welcome from './screens/Welcome';
@@ -17,15 +18,17 @@ import IssueTracking from './screens/IssueTracking';
 import Activity from './screens/Activity';
 import Leaderboard from './screens/Leaderboard';
 import Settings from './screens/Settings';
+import CityPicker from './components/CityPicker';
 
 type AppScreen =
   | 'welcome' | 'home' | 'capture' | 'details'
   | 'sent' | 'tracking' | 'activity' | 'leaderboard' | 'settings';
 
-const CITY_DATA: CityData = defaultCity();
-
 export function App() {
-  const [generated, setGenerated] = useState<GeneratedData>(() => generateData(CITY_DATA));
+  const [cityData, setCityData] = useState<CityData>(defaultCity());
+  const [seedOverride, setSeedOverride] = useState<number | undefined>(undefined);
+  const [generated, setGenerated] = useState<GeneratedData>(() => generateData(defaultCity()));
+
   const [screen, setScreen] = useState<AppScreen>('welcome');
   const [history, setHistory] = useState<AppScreen[]>([]);
   const [reports, setReports] = useState<Issue[]>([]);
@@ -36,11 +39,16 @@ export function App() {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [sentIssue, setSentIssue] = useState<Issue | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const demoTimerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [showCityPicker, setShowCityPicker] = useState(false);
 
+  const demoTimerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const watchIdRef = useRef<string | null>(null);
+  const lastGpsRef = useRef<{ lat: number; lon: number } | null>(null);
+  const seedRef = useRef<number | undefined>(undefined);
+  const streetsAppliedRef = useRef(false);
+
+  // Bottom nav-bar inset via visualViewport
   useEffect(() => {
-    // Detect bottom inset (nav bar) via visualViewport — works on Android 15/16
-    // even when env(safe-area-inset-bottom) is not forwarded by Capacitor WebView
     const updateInset = () => {
       const vvh = window.visualViewport?.height ?? window.innerHeight;
       const inset = Math.max(0, Math.round(window.innerHeight - vvh));
@@ -51,6 +59,7 @@ export function App() {
     return () => window.visualViewport?.removeEventListener('resize', updateInset);
   }, []);
 
+  // Persist / restore storage
   useEffect(() => {
     (async () => {
       try {
@@ -67,7 +76,58 @@ export function App() {
     })();
   }, []);
 
-  // Notification tap → open issue tracking (background and cold-start)
+  // GPS via Capacitor Geolocation
+  useEffect(() => {
+    (async () => {
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+
+        // Check permission first
+        const perm = await Geolocation.checkPermissions();
+        if (perm.location === 'denied') {
+          setShowCityPicker(true);
+          return;
+        }
+
+        const pos = await Geolocation.getCurrentPosition({ timeout: 8000, enableHighAccuracy: false });
+        const { latitude: lat, longitude: lon } = pos.coords;
+        applyPosition(lat, lon);
+
+        // Watch for moves >1 km
+        const id = await Geolocation.watchPosition({ enableHighAccuracy: false }, (update) => {
+          if (!update) return;
+          const { latitude, longitude } = update.coords;
+          if (lastGpsRef.current && haversineKm(lastGpsRef.current.lat, lastGpsRef.current.lon, latitude, longitude) > 1) {
+            applyPosition(latitude, longitude);
+          }
+        });
+        watchIdRef.current = id;
+      } catch {
+        // GPS unavailable — keep default city, let tiles determine streets
+      }
+    })();
+
+    return () => {
+      if (watchIdRef.current) {
+        import('@capacitor/geolocation').then(({ Geolocation }) => {
+          Geolocation.clearWatch({ id: watchIdRef.current! });
+        });
+      }
+    };
+  }, []);
+
+  function applyPosition(lat: number, lon: number) {
+    const seed = locationSeed(lat, lon);
+    const cd: CityData = { name: 'Nearby', lat, lon, streets: [] };
+    lastGpsRef.current = { lat, lon };
+    seedRef.current = seed;
+    streetsAppliedRef.current = false;
+    setSeedOverride(seed);
+    setCityData(cd);
+    setGenerated(generateData(cd, seed));
+  }
+
+  // Notification tap listener
   useEffect(() => {
     let handle: { remove: () => void } | undefined;
     (async () => {
@@ -82,20 +142,32 @@ export function App() {
               setHistory([]);
               setScreen('tracking');
             }
-          }
+          },
         );
       } catch { /* browser fallback */ }
     })();
     return () => { handle?.remove(); };
   }, []);
 
+  // Called by Home when AppMap has extracted real streets from tiles
+  const handleStreetsReady = useCallback((streets: StreetPoint[]) => {
+    if (streetsAppliedRef.current) return;
+    streetsAppliedRef.current = true;
+    const seed = seedRef.current;
+    setCityData((prev) => {
+      const updated: CityData = { ...prev, streets };
+      setGenerated(generateData(updated, seed));
+      return updated;
+    });
+  }, []);
+
   const navigate = (s: AppScreen) => {
-    setHistory(h => [...h, screen]);
+    setHistory((h) => [...h, screen]);
     setScreen(s);
   };
 
   const back = () => {
-    setHistory(h => {
+    setHistory((h) => {
       const next = [...h];
       const prev = next.pop() ?? 'home';
       setScreen(prev);
@@ -115,7 +187,7 @@ export function App() {
   };
 
   const handleSendReport = async (note: string, cat: Category) => {
-    const streets = CITY_DATA.streets;
+    const streets = cityData.streets;
     const street = streets[Math.floor(Math.random() * streets.length)];
     const num = Math.floor(Math.random() * 80) + 1;
 
@@ -132,9 +204,9 @@ export function App() {
       id: `SC-USER-${Date.now()}`,
       title: note ? note.slice(0, 40) : TITLE_MAP[cat],
       category: cat,
-      lat: CITY_DATA.lat + (Math.random() - 0.5) * 0.01,
-      lon: CITY_DATA.lon + (Math.random() - 0.5) * 0.02,
-      address: street ? `${street.name} ${num}` : CITY_DATA.name,
+      lat: cityData.lat + (Math.random() - 0.5) * 0.01,
+      lon: cityData.lon + (Math.random() - 0.5) * 0.02,
+      address: street ? `${street.name} ${num}` : cityData.name,
       status: 'New',
       reports: 1,
       severity: 3,
@@ -150,19 +222,15 @@ export function App() {
     await saveReports(newReports);
     await savePoints(newPoints);
 
-    // Foreground status timers — drive issue screen when app is open
     demoTimerIds.current.forEach(clearTimeout);
     demoTimerIds.current = [];
     const fgDelays =
       speed === 'fast' ? [20000, 40000, 60000, 90000] :
-      speed === 'slow' ? [120000, 300000, 600000, 900000] :
-      [];
+      speed === 'slow' ? [120000, 300000, 600000, 900000] : [];
     const fgStatuses: Issue['status'][] = ['Accepted', 'Planned', 'In repair', 'Fixed'];
     fgDelays.forEach((d, i) => {
       const tid = setTimeout(() => {
-        setReports(prev => prev.map(r =>
-          r.id === newIssue.id ? { ...r, status: fgStatuses[i] } : r
-        ));
+        setReports((prev) => prev.map((r) => r.id === newIssue.id ? { ...r, status: fgStatuses[i] } : r));
       }, d);
       demoTimerIds.current.push(tid);
     });
@@ -172,7 +240,6 @@ export function App() {
   };
 
   const handleReset = async () => {
-    // Cancel foreground timers first
     demoTimerIds.current.forEach(clearTimeout);
     demoTimerIds.current = [];
     try {
@@ -180,14 +247,11 @@ export function App() {
       const { loadNotifIds } = await import('./lib/storage');
       const storedIds = await loadNotifIds();
       const { notifications: pending } = await LocalNotifications.getPending();
-      const pendingSet = new Set(pending.map(p => p.id));
-      const extra = storedIds.filter(id => !pendingSet.has(id)).map(id => ({ id }));
+      const pendingSet = new Set(pending.map((p) => p.id));
+      const extra = storedIds.filter((id) => !pendingSet.has(id)).map((id) => ({ id }));
       const allToCancel = [...pending, ...extra];
-      if (allToCancel.length > 0) {
-        await LocalNotifications.cancel({ notifications: allToCancel });
-      }
+      if (allToCancel.length > 0) await LocalNotifications.cancel({ notifications: allToCancel });
       await LocalNotifications.removeAllDeliveredNotifications();
-      // Broadcast receivers may fire within ~3s of cancel; sweep them out
       const sweep = setInterval(() => {
         LocalNotifications.removeAllDeliveredNotifications().catch(() => {});
       }, 250);
@@ -199,7 +263,8 @@ export function App() {
     setSpeed('fast');
     setPendingPhoto(null);
     setPendingCategory(null);
-    setGenerated(generateData(CITY_DATA));
+    // Regenerate with same location seed (keeps real streets)
+    setGenerated(generateData(cityData, seedRef.current));
     setHistory([]);
     setScreen('welcome');
   };
@@ -211,19 +276,30 @@ export function App() {
 
   if (!loaded) return null;
 
+  if (showCityPicker) {
+    return (
+      <CityPicker
+        onPick={(city) => {
+          seedRef.current = undefined;
+          streetsAppliedRef.current = false;
+          setSeedOverride(undefined);
+          setCityData(city);
+          setGenerated(generateData(city));
+          setShowCityPicker(false);
+        }}
+      />
+    );
+  }
+
   switch (screen) {
     case 'welcome':
-      return (
-        <Welcome
-          onContinue={() => { setHistory([]); setScreen('home'); }}
-        />
-      );
+      return <Welcome onContinue={() => { setHistory([]); setScreen('home'); }} />;
 
     case 'home':
       return (
         <Home
           generated={generated}
-          cityData={CITY_DATA}
+          cityData={cityData}
           userReports={reports}
           points={points}
           onCapture={() => navigate('capture')}
@@ -232,26 +308,21 @@ export function App() {
           onLeaderboard={() => goTab('leaderboard')}
           onSettings={() => navigate('settings')}
           onReset={handleReset}
+          onStreetsReady={handleStreetsReady}
         />
       );
 
     case 'capture':
-      return (
-        <Capture
-          cityData={CITY_DATA}
-          onPhoto={handlePhotoTaken}
-          onClose={back}
-        />
-      );
+      return <Capture cityData={cityData} onPhoto={handlePhotoTaken} onClose={back} />;
 
     case 'details':
       return (
         <ReportDetails
           photo={pendingPhoto ?? ''}
           category={pendingCategory ?? 'Other'}
-          cityData={CITY_DATA}
-          userLat={CITY_DATA.lat}
-          userLon={CITY_DATA.lon}
+          cityData={cityData}
+          userLat={cityData.lat}
+          userLon={cityData.lon}
           onSend={handleSendReport}
           onBack={back}
         />
@@ -262,27 +333,16 @@ export function App() {
         <Sent
           issue={sentIssue}
           speed={speed}
-          onTrack={() => {
-            setSelectedIssueId(sentIssue.id);
-            setHistory([]);
-            setScreen('tracking');
-          }}
+          onTrack={() => { setSelectedIssueId(sentIssue.id); setHistory([]); setScreen('tracking'); }}
           onHome={() => goTab('home')}
         />
       ) : null;
 
     case 'tracking': {
       const allIssues = [...generated.issues, ...reports];
-      const issue = selectedIssueId
-        ? allIssues.find(i => i.id === selectedIssueId) ?? null
-        : null;
+      const issue = selectedIssueId ? allIssues.find((i) => i.id === selectedIssueId) ?? null : null;
       return issue ? (
-        <IssueTracking
-          issue={issue}
-          isOwnReport={reports.some(r => r.id === issue.id)}
-          onBack={back}
-          onConfirm={() => {}}
-        />
+        <IssueTracking issue={issue} isOwnReport={reports.some((r) => r.id === issue.id)} onBack={back} onConfirm={() => {}} />
       ) : null;
     }
 
@@ -301,7 +361,7 @@ export function App() {
     case 'leaderboard':
       return (
         <Leaderboard
-          cityData={CITY_DATA}
+          cityData={cityData}
           reporters={generated.reporters}
           userPoints={points}
           onHome={() => goTab('home')}
@@ -311,13 +371,7 @@ export function App() {
       );
 
     case 'settings':
-      return (
-        <Settings
-          speed={speed}
-          onSpeedChange={handleSpeedChange}
-          onClose={back}
-        />
-      );
+      return <Settings speed={speed} onSpeedChange={handleSpeedChange} onClose={back} />;
 
     default:
       return null;
