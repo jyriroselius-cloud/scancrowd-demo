@@ -1,0 +1,48 @@
+[
+  {
+    "label": "Tampere_1280",
+    "url": "http://localhost:5100/?city=Tampere",
+    "width": 1280,
+    "height": 800,
+    "checks": {
+      "hasContent": true,
+      "streetNames": true,
+      "noErrors": true
+    },
+    "networkRequests": []
+  },
+  {
+    "label": "Reload_same_data",
+    "checks": {
+      "identical": true
+    }
+  },
+  {
+    "label": "Lempaala_1280",
+    "url": "http://localhost:5100/?city=Lempaala",
+    "width": 1280,
+    "height": 800,
+    "checks": {
+      "differentFromTampere": true
+    },
+    "networkRequests": []
+  },
+  {
+    "label": "Tampere_1024",
+    "url": "http://localhost:5100/?city=Tampere",
+    "width": 1024,
+    "height": 768,
+    "checks": {
+      "noHorizontalScroll": true
+    },
+    "networkRequests": []
+  },
+  {
+    "label": "Network_requests",
+    "checks": {
+      "allExternal": [],
+      "nonTileRequests": [],
+      "onlyMapTiles": true
+    }
+  }
+]

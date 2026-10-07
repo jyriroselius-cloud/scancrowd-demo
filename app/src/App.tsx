@@ -39,12 +39,17 @@ export function App() {
 
   useEffect(() => {
     (async () => {
-      const [r, p, s] = await Promise.all([loadReports(), loadPoints(), loadDemoSpeed(), loadNickname()]);
-      setReports(r);
-      setPoints(p);
-      setSpeed(s);
-      setScreen(r.length === 0 ? 'welcome' : 'home');
-      setLoaded(true);
+      try {
+        const [r, p, s] = await Promise.all([loadReports(), loadPoints(), loadDemoSpeed(), loadNickname()]);
+        setReports(r);
+        setPoints(p);
+        setSpeed(s as DemoSpeed);
+        setScreen(r.length === 0 ? 'welcome' : 'home');
+      } catch {
+        setScreen('welcome');
+      } finally {
+        setLoaded(true);
+      }
     })();
   }, []);
 
