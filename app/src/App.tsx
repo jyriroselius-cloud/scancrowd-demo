@@ -174,6 +174,11 @@ export function App() {
         await LocalNotifications.cancel({ notifications: allToCancel });
       }
       await LocalNotifications.removeAllDeliveredNotifications();
+      // Broadcast receivers may fire within ~3s of cancel; sweep them out
+      const sweep = setInterval(() => {
+        LocalNotifications.removeAllDeliveredNotifications().catch(() => {});
+      }, 250);
+      setTimeout(() => clearInterval(sweep), 4000);
     } catch { /* browser fallback */ }
     await clearAll();
     setReports([]);
