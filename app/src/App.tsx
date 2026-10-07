@@ -39,6 +39,19 @@ export function App() {
   const demoTimerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
+    // Detect bottom inset (nav bar) via visualViewport — works on Android 15/16
+    // even when env(safe-area-inset-bottom) is not forwarded by Capacitor WebView
+    const updateInset = () => {
+      const vvh = window.visualViewport?.height ?? window.innerHeight;
+      const inset = Math.max(0, Math.round(window.innerHeight - vvh));
+      document.documentElement.style.setProperty('--safe-bottom', `${inset}px`);
+    };
+    updateInset();
+    window.visualViewport?.addEventListener('resize', updateInset);
+    return () => window.visualViewport?.removeEventListener('resize', updateInset);
+  }, []);
+
+  useEffect(() => {
     (async () => {
       try {
         const [r, p, s] = await Promise.all([loadReports(), loadPoints(), loadDemoSpeed(), loadNickname()]);

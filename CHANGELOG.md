@@ -74,3 +74,10 @@ versionCode 7
 
 ### Fixed
 - **Map fills full screen:** SVG changed from hardcoded 390×560 to `width/height: 100%` with `preserveAspectRatio="xMidYMid slice"`, and Home.tsx passes `window.innerWidth/Height` as coordinate space — fixes blank map and missing issue markers on Samsung (wider/taller screens)
+
+## [0.1.7] — 2026-10-07
+versionCode 8
+
+### Fixed
+- **Navigation bar coverage (reliable fix):** `env(safe-area-inset-bottom)` is not reliably forwarded by Capacitor 6 WebView on Android 15/16. New approach: `visualViewport` listener in App.tsx detects actual inset (`window.innerHeight - visualViewport.height`) and writes it directly to `--safe-bottom` CSS variable on mount
+- **Map fills screen + all markers visible:** SVG changed to `position: absolute, top: 0, left: 0, width: 100vw, height: 100vh, preserveAspectRatio: none` — guaranteed to cover the full screen on any Samsung/Android screen size

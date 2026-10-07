@@ -54,8 +54,8 @@ export default function MapSvg({ issues, userLat, userLon, centerLat, centerLon,
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="xMidYMid slice"
-      style={{ display: 'block', width: '100%', height: '100%' }}
+      preserveAspectRatio="none"
+      style={{ display: 'block', width: '100vw', height: '100vh', position: 'absolute', top: 0, left: 0 }}
       aria-hidden="true"
     >
       <rect width={width} height={height} fill="#0e2229" />
