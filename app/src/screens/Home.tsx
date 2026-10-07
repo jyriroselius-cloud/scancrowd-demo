@@ -109,10 +109,10 @@ export default function Home({ generated, cityData, userReports, points, onCaptu
       <div style={{ position: 'absolute', inset: 0 }}>
         <MapSvg
           issues={allIssues}
-          userLat={userLat ?? cityData.lat}
-          userLon={userLon ?? cityData.lon}
-          centerLat={userLat ?? cityData.lat}
-          centerLon={userLon ?? cityData.lon}
+          userLat={userLat}
+          userLon={userLon}
+          centerLat={cityData.lat}
+          centerLon={cityData.lon}
           width={window.innerWidth || 390}
           height={window.innerHeight || 760}
           onIssueTap={onIssueSelect}

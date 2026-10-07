@@ -87,3 +87,9 @@ versionCode 9
 
 ### Fixed
 - **Navigation bar gap propagates correctly:** All bottom-anchored components (TabBar, Home bottom sheet, Activity, IssueTracking, Leaderboard, Capture) changed from `env(safe-area-inset-bottom, 0px)` → `var(--safe-bottom, env(safe-area-inset-bottom, 0px))` so the visualViewport-detected inset (set by App.tsx) actually applies
+
+## [0.1.9] — 2026-10-07
+versionCode 10
+
+### Fixed
+- **Map markers always visible:** Map now centers on the demo city (Tampere) regardless of the user's real GPS location. Previously `centerLat/Lon` was set to the GPS position, so all Tampere-based issues projected off-screen when the user is in a different city. GPS is now used only for the "you are here" dot.
