@@ -44,8 +44,8 @@ export default function MapSvg({ issues, userLat, userLon, centerLat, centerLon,
     const x = t * width;
     const y = t * height;
     gridLines.push(
-      <line key={`v${i}`} x1={x} y1={0} x2={x + 8} y2={height} stroke="#1b3943" strokeWidth="8" strokeLinecap="round" />,
-      <line key={`h${i}`} x1={0} y1={y} x2={width} y2={y + 5} stroke="#1b3943" strokeWidth="6" strokeLinecap="round" />,
+      <line key={`v${i}`} x1={x} y1={0} x2={x + 8} y2={height} stroke="#2d6578" strokeWidth="8" strokeLinecap="round" />,
+      <line key={`h${i}`} x1={0} y1={y} x2={width} y2={y + 5} stroke="#2d6578" strokeWidth="6" strokeLinecap="round" />,
     );
   }
 

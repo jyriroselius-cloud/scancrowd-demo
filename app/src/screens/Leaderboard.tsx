@@ -38,7 +38,7 @@ export default function Leaderboard({ cityData, reporters, userPoints, onHome, o
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#0c1d24', fontFamily: 'Manrope, system-ui, sans-serif', color: '#ffffff' }}>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 84, overflowY: 'auto', padding: '24px 16px 120px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))', overflowY: 'auto', padding: '24px 16px 120px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
