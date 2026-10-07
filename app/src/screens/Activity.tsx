@@ -22,7 +22,7 @@ export default function Activity({ reports, onIssueSelect, onCapture, onHome, on
       </div>
 
       {/* Content */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 'calc(84px + env(safe-area-inset-bottom, 0px))', overflowY: 'auto', padding: '0 16px 16px' }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 96, bottom: 'calc(84px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))', overflowY: 'auto', padding: '0 16px 16px' }}>
         {reports.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, height: '60%', textAlign: 'center' }}>
             <div style={{ width: 72, height: 72, borderRadius: 36, background: '#132a33', border: '1px solid #2a4650', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -105,7 +105,7 @@ export default function IssueTracking({ issue, isOwnReport, onBack, onConfirm }:
       </div>
 
       {/* Scrollable content */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 196, bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', overflowY: 'auto', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 196, bottom: 'calc(80px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))', overflowY: 'auto', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Progress card */}
         <div style={{ background: '#132a33', border: '1px solid #2a4650', borderRadius: 20, padding: 18, display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 12px 32px rgba(0,0,0,0.35)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -176,7 +176,7 @@ export default function IssueTracking({ issue, isOwnReport, onBack, onConfirm }:
       </div>
 
       {/* Bottom bar */}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 'calc(80px + env(safe-area-inset-bottom, 0px))', background: '#0a1920', borderTop: '1px solid #1f3a44', padding: '12px 16px', paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))', boxSizing: 'border-box', display: 'flex', gap: 12 }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 'calc(80px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))', background: '#0a1920', borderTop: '1px solid #1f3a44', padding: '12px 16px', paddingBottom: 'calc(20px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))', boxSizing: 'border-box', display: 'flex', gap: 12 }}>
         <button
           onClick={() => { setConfirmed(true); onConfirm(issue.id); }}
           disabled={confirmed}

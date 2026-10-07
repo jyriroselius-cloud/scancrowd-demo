@@ -235,7 +235,7 @@ export default function Home({ generated, cityData, userReports, points, onCaptu
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 84,
+        bottom: 'calc(84px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))',
         height: 280,
         background: '#132a33',
         borderRadius: '28px 28px 0 0',
