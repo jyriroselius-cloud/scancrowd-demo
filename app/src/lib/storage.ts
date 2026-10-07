@@ -4,6 +4,7 @@ const KEY_REPORTS = 'sc_reports';
 const KEY_POINTS = 'sc_points';
 const KEY_SPEED = 'sc_demo_speed';
 const KEY_NICKNAME = 'sc_nickname';
+const KEY_NOTIF_IDS = 'sc_notif_ids';
 
 export type DemoSpeed = 'fast' | 'slow' | 'manual';
 
@@ -86,6 +87,26 @@ export async function loadNickname(): Promise<string> {
     return value ?? 'You';
   }
   return localStorage.getItem(KEY_NICKNAME) ?? 'You';
+}
+
+export async function saveNotifIds(ids: number[]): Promise<void> {
+  const container = await getPrefs();
+  const value = JSON.stringify(ids);
+  if (container) {
+    await container.prefs.set({ key: KEY_NOTIF_IDS, value });
+  } else {
+    localStorage.setItem(KEY_NOTIF_IDS, value);
+  }
+}
+
+export async function loadNotifIds(): Promise<number[]> {
+  const container = await getPrefs();
+  if (container) {
+    const { value } = await container.prefs.get({ key: KEY_NOTIF_IDS });
+    return value ? (JSON.parse(value) as number[]) : [];
+  }
+  const raw = localStorage.getItem(KEY_NOTIF_IDS);
+  return raw ? (JSON.parse(raw) as number[]) : [];
 }
 
 export async function clearAll(): Promise<void> {

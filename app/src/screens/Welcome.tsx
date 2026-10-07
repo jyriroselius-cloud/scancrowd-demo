@@ -17,8 +17,8 @@ export default function Welcome({ onContinue }: Props) {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       await LocalNotifications.requestPermissions();
-      const status = await LocalNotifications.checkPermissions();
-      if (status.display !== 'granted') setExactAlarmHint(true);
+      const exactStatus = await LocalNotifications.checkExactNotificationSetting();
+      if (exactStatus.exact_alarm !== 'granted') setExactAlarmHint(true);
     } catch { /* browser fallback */ }
     onContinue();
   };
@@ -121,10 +121,25 @@ export default function Welcome({ onContinue }: Props) {
                   padding: '8px 16px 12px 52px',
                   border: '1px solid #2a4650',
                   borderTop: '1px solid #1a3540',
-                  font: '500 12px Manrope, sans-serif',
-                  color: '#a9b8bd',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
                 }}>
-                  Enable exact alarms in Settings for precise timing
+                  <span style={{ font: '500 12px Manrope, sans-serif', color: '#a9b8bd' }}>
+                    Exact alarms not granted — notifications may be delayed
+                  </span>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const { LocalNotifications } = await import('@capacitor/local-notifications');
+                        await LocalNotifications.changeExactNotificationSetting();
+                      } catch { /* no-op */ }
+                    }}
+                    style={{ flexShrink: 0, background: '#2a4650', border: 'none', borderRadius: 8, color: '#ffffff', font: '700 11px Manrope, sans-serif', padding: '5px 10px', cursor: 'pointer' }}
+                  >
+                    Open Settings
+                  </button>
                 </div>
               )}
             </div>

@@ -1,4 +1,5 @@
 import type { DemoSpeed } from '../lib/storage';
+import { saveNotifIds, loadNotifIds } from '../lib/storage';
 
 const MESSAGES = [
   { title: 'Report accepted', body: (cat: string) => `City confirmed your ${cat} report. +10 pts` },
@@ -16,14 +17,16 @@ export function useNotifications(speed: DemoSpeed) {
     if (delays.length === 0) return;
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const ids = delays.map(() => Math.floor(Math.random() * 1_000_000) + 1);
       const notifs = delays.map((d, i) => ({
-        id: Math.floor(Math.random() * 1_000_000),
+        id: ids[i],
         title: MESSAGES[i].title,
         body: MESSAGES[i].body(category),
         extra: { issueId },
         schedule: { at: new Date(Date.now() + d * 1000), allowWhileIdle: true },
       }));
       await LocalNotifications.schedule({ notifications: notifs });
+      await saveNotifIds(ids);
     } catch {
       // browser fallback — no-op
     }
@@ -32,10 +35,22 @@ export function useNotifications(speed: DemoSpeed) {
   const cancelAll = async () => {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
+      // Use stored IDs as primary source (reliable even if AlarmManager already fired)
+      const storedIds = await loadNotifIds();
+      // Also grab anything still pending (belt + suspenders)
       const { notifications: pending } = await LocalNotifications.getPending();
-      if (pending.length > 0) {
-        await LocalNotifications.cancel({ notifications: pending });
+      const pendingIds = new Set(pending.map(p => p.id));
+      const extraFromStore = storedIds
+        .filter(id => !pendingIds.has(id))
+        .map(id => ({ id }));
+      const allToCancel = [...pending, ...extraFromStore];
+      if (allToCancel.length > 0) {
+        await LocalNotifications.cancel({ notifications: allToCancel });
       }
+      // Remove any notifications already delivered and visible in the shade
+      await LocalNotifications.removeAllDeliveredNotifications();
+      // Clear stored IDs
+      await saveNotifIds([]);
     } catch { /* browser fallback */ }
   };
 

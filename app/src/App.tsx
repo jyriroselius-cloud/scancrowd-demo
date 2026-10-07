@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { defaultCity } from '@shared/cities';
 import { generateData } from '@shared/generator';
 import {
@@ -36,6 +36,7 @@ export function App() {
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [sentIssue, setSentIssue] = useState<Issue | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const demoTimerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -51,6 +52,28 @@ export function App() {
         setLoaded(true);
       }
     })();
+  }, []);
+
+  // Notification tap → open issue tracking (background and cold-start)
+  useEffect(() => {
+    let handle: { remove: () => void } | undefined;
+    (async () => {
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
+        handle = await LocalNotifications.addListener(
+          'localNotificationActionPerformed',
+          (event) => {
+            const issueId = event.notification.extra?.issueId as string | undefined;
+            if (issueId) {
+              setSelectedIssueId(issueId);
+              setHistory([]);
+              setScreen('tracking');
+            }
+          }
+        );
+      } catch { /* browser fallback */ }
+    })();
+    return () => { handle?.remove(); };
   }, []);
 
   const navigate = (s: AppScreen) => {
@@ -113,17 +136,44 @@ export function App() {
     setSentIssue(newIssue);
     await saveReports(newReports);
     await savePoints(newPoints);
+
+    // Foreground status timers — drive issue screen when app is open
+    demoTimerIds.current.forEach(clearTimeout);
+    demoTimerIds.current = [];
+    const fgDelays =
+      speed === 'fast' ? [20000, 40000, 60000, 90000] :
+      speed === 'slow' ? [120000, 300000, 600000, 900000] :
+      [];
+    const fgStatuses: Issue['status'][] = ['Accepted', 'Planned', 'In repair', 'Fixed'];
+    fgDelays.forEach((d, i) => {
+      const tid = setTimeout(() => {
+        setReports(prev => prev.map(r =>
+          r.id === newIssue.id ? { ...r, status: fgStatuses[i] } : r
+        ));
+      }, d);
+      demoTimerIds.current.push(tid);
+    });
+
     setHistory([]);
     setScreen('sent');
   };
 
   const handleReset = async () => {
+    // Cancel foreground timers first
+    demoTimerIds.current.forEach(clearTimeout);
+    demoTimerIds.current = [];
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const { loadNotifIds } = await import('./lib/storage');
+      const storedIds = await loadNotifIds();
       const { notifications: pending } = await LocalNotifications.getPending();
-      if (pending.length > 0) {
-        await LocalNotifications.cancel({ notifications: pending });
+      const pendingSet = new Set(pending.map(p => p.id));
+      const extra = storedIds.filter(id => !pendingSet.has(id)).map(id => ({ id }));
+      const allToCancel = [...pending, ...extra];
+      if (allToCancel.length > 0) {
+        await LocalNotifications.cancel({ notifications: allToCancel });
       }
+      await LocalNotifications.removeAllDeliveredNotifications();
     } catch { /* browser fallback */ }
     await clearAll();
     setReports([]);
