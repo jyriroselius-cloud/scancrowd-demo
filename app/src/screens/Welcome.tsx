@@ -6,6 +6,7 @@ interface Props {
 
 export default function Welcome({ onContinue }: Props) {
   const [loading, setLoading] = useState(false);
+  const [exactAlarmHint, setExactAlarmHint] = useState(false);
 
   const handleStart = async () => {
     setLoading(true);
@@ -16,6 +17,8 @@ export default function Welcome({ onContinue }: Props) {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       await LocalNotifications.requestPermissions();
+      const status = await LocalNotifications.checkPermissions();
+      if (status.display !== 'granted') setExactAlarmHint(true);
     } catch { /* browser fallback */ }
     onContinue();
   };
@@ -95,20 +98,35 @@ export default function Welcome({ onContinue }: Props) {
             { icon: '📷', text: 'Camera to photograph defects' },
             { icon: '🔔', text: 'Notifications when issues are fixed' },
           ].map(({ icon, text }) => (
-            <div
-              key={text}
-              style={{
-                display: 'flex',
-                gap: 16,
-                alignItems: 'center',
-                background: '#132a33',
-                borderRadius: 16,
-                padding: '14px 16px',
-                border: '1px solid #2a4650',
-              }}
-            >
-              <span style={{ fontSize: 22 }}>{icon}</span>
-              <span style={{ font: '600 14px Manrope, sans-serif' }}>{text}</span>
+            <div key={text} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 16,
+                  alignItems: 'center',
+                  background: '#132a33',
+                  borderRadius: exactAlarmHint && icon === '🔔' ? '16px 16px 0 0' : 16,
+                  padding: '14px 16px',
+                  border: '1px solid #2a4650',
+                  borderBottom: exactAlarmHint && icon === '🔔' ? 'none' : '1px solid #2a4650',
+                }}
+              >
+                <span style={{ fontSize: 22 }}>{icon}</span>
+                <span style={{ font: '600 14px Manrope, sans-serif' }}>{text}</span>
+              </div>
+              {exactAlarmHint && icon === '🔔' && (
+                <div style={{
+                  background: '#132a33',
+                  borderRadius: '0 0 16px 16px',
+                  padding: '8px 16px 12px 52px',
+                  border: '1px solid #2a4650',
+                  borderTop: '1px solid #1a3540',
+                  font: '500 12px Manrope, sans-serif',
+                  color: '#a9b8bd',
+                }}>
+                  Enable exact alarms in Settings for precise timing
+                </div>
+              )}
             </div>
           ))}
         </div>

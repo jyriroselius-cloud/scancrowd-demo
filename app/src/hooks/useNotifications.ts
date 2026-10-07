@@ -20,12 +20,24 @@ export function useNotifications(speed: DemoSpeed) {
         id: Math.floor(Math.random() * 1_000_000),
         title: MESSAGES[i].title,
         body: MESSAGES[i].body(category),
-        schedule: { at: new Date(Date.now() + d * 1000) },
+        extra: { issueId },
+        schedule: { at: new Date(Date.now() + d * 1000), allowWhileIdle: true },
       }));
       await LocalNotifications.schedule({ notifications: notifs });
     } catch {
       // browser fallback — no-op
     }
   };
-  return { schedule };
+
+  const cancelAll = async () => {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const { notifications: pending } = await LocalNotifications.getPending();
+      if (pending.length > 0) {
+        await LocalNotifications.cancel({ notifications: pending });
+      }
+    } catch { /* browser fallback */ }
+  };
+
+  return { schedule, cancelAll };
 }

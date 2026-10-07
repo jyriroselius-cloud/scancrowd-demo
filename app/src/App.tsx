@@ -118,10 +118,19 @@ export function App() {
   };
 
   const handleReset = async () => {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const { notifications: pending } = await LocalNotifications.getPending();
+      if (pending.length > 0) {
+        await LocalNotifications.cancel({ notifications: pending });
+      }
+    } catch { /* browser fallback */ }
     await clearAll();
     setReports([]);
     setPoints(0);
     setSpeed('fast');
+    setPendingPhoto(null);
+    setPendingCategory(null);
     setGenerated(generateData(CITY_DATA));
     setHistory([]);
     setScreen('welcome');
