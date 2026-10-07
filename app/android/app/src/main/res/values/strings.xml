@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ScanCrowd</string>
+    <string name="title_activity_main">ScanCrowd</string>
+    <string name="package_name">ai.scanwai.scancrowd.demo</string>
+    <string name="custom_url_scheme">ai.scanwai.scancrowd.demo</string>
+</resources>
