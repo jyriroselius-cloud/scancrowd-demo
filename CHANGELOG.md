@@ -68,3 +68,9 @@ versionCode 6
 ### Fixed
 - **Edge-to-edge (Android 15+/16):** All bottom-anchored elements now use `env(safe-area-inset-bottom)` so Samsung gesture navigation bar no longer overlaps TabBar, Capture panel, IssueTracking bottom bar
 - **Map visibility:** Grid line color changed from #1b3943 → #2d6578 (higher contrast on dark background)
+
+## [0.1.6] — 2026-10-07
+versionCode 7
+
+### Fixed
+- **Map fills full screen:** SVG changed from hardcoded 390×560 to `width/height: 100%` with `preserveAspectRatio="xMidYMid slice"`, and Home.tsx passes `window.innerWidth/Height` as coordinate space — fixes blank map and missing issue markers on Samsung (wider/taller screens)

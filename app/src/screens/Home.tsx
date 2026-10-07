@@ -113,8 +113,8 @@ export default function Home({ generated, cityData, userReports, points, onCaptu
           userLon={userLon ?? cityData.lon}
           centerLat={userLat ?? cityData.lat}
           centerLon={userLon ?? cityData.lon}
-          width={390}
-          height={560}
+          width={window.innerWidth || 390}
+          height={window.innerHeight || 760}
           onIssueTap={onIssueSelect}
         />
       </div>
