@@ -18,11 +18,13 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
   const [cameraReady, setCameraReady] = useState(false);
   const [zoomScale, setZoomScale] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const viewfinderRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPinchDist = useRef<number | null>(null);
+  const zoomRef = useRef(1);
 
-  // Start live camera viewfinder
+  // Start live camera viewfinder + native pinch-to-zoom (passive:false lets us preventDefault)
   useEffect(() => {
     navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } } })
       .then((stream) => {
@@ -32,14 +34,43 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
           setCameraReady(true);
         }
       })
-      .catch(() => {
-        // Camera not available — will show placeholder
-      });
+      .catch(() => {});
+
+    const el = viewfinderRef.current;
+    if (!el) return;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastPinchDist.current = Math.hypot(dx, dy);
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && lastPinchDist.current !== null) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        zoomRef.current = Math.min(5, Math.max(1, zoomRef.current * (dist / lastPinchDist.current)));
+        setZoomScale(zoomRef.current);
+        lastPinchDist.current = dist;
+      }
+    };
+    const onTouchEnd = () => { lastPinchDist.current = null; };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
 
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       if (aiTimer.current) clearTimeout(aiTimer.current);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
     };
   }, []);
 
@@ -99,25 +130,8 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
       ) : (
         <>
           <div
+            ref={viewfinderRef}
             style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', overflow: 'hidden', background: '#10262e' }}
-            onTouchStart={(e) => {
-              if (e.touches.length === 2) {
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                lastPinchDist.current = Math.hypot(dx, dy);
-              }
-            }}
-            onTouchMove={(e) => {
-              if (e.touches.length === 2 && lastPinchDist.current !== null) {
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                const dist = Math.hypot(dx, dy);
-                const ratio = dist / lastPinchDist.current;
-                setZoomScale((z) => Math.min(5, Math.max(1, z * ratio)));
-                lastPinchDist.current = dist;
-              }
-            }}
-            onTouchEnd={() => { lastPinchDist.current = null; }}
           >
             <video
               ref={videoRef}
