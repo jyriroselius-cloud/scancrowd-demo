@@ -21,7 +21,8 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
   const viewfinderRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastPinchDist = useRef<number | null>(null);
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const prevPinchDist = useRef(0);
   const zoomRef = useRef(1);
 
   // Start live camera viewfinder + native pinch-to-zoom (passive:false lets us preventDefault)
@@ -39,37 +40,41 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
     const el = viewfinderRef.current;
     if (!el) return;
 
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        lastPinchDist.current = Math.hypot(dx, dy);
+    // Pointer Events API — more reliable than touch events in Android WebView
+    const onDown = (e: PointerEvent) => {
+      activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!activePointers.current.has(e.pointerId)) return;
+      activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.current.size === 2) {
+        const pts = Array.from(activePointers.current.values());
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (prevPinchDist.current > 0) {
+          zoomRef.current = Math.min(5, Math.max(1, zoomRef.current * (dist / prevPinchDist.current)));
+          setZoomScale(zoomRef.current);
+        }
+        prevPinchDist.current = dist;
       }
     };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && lastPinchDist.current !== null) {
-        e.preventDefault(); // prevent scroll while zooming
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const dist = Math.hypot(dx, dy);
-        zoomRef.current = Math.min(5, Math.max(1, zoomRef.current * (dist / lastPinchDist.current)));
-        setZoomScale(zoomRef.current);
-        lastPinchDist.current = dist;
-      }
+    const onUp = (e: PointerEvent) => {
+      activePointers.current.delete(e.pointerId);
+      if (activePointers.current.size < 2) prevPinchDist.current = 0;
     };
-    const onTouchEnd = () => { lastPinchDist.current = null; };
 
-    el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
 
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       if (aiTimer.current) clearTimeout(aiTimer.current);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
     };
   }, []);
 
@@ -223,11 +228,12 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         </button>
       </div>
 
-      {/* Bottom panel — no fixed height, content sizes naturally with padding */}
+      {/* Bottom panel — fills from 65% to bottom, scrolls if content overflows */}
       <div style={{
         position: 'absolute',
         left: 0,
         right: 0,
+        top: '65%',
         bottom: 0,
         background: '#0c1d24',
         borderRadius: '28px 28px 0 0',
@@ -235,11 +241,12 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         paddingTop: 18,
         paddingLeft: 16,
         paddingRight: 16,
-        paddingBottom: 'calc(24px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))',
+        paddingBottom: 'max(calc(var(--safe-bottom, 0px) + 16px), 40px)',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
+        gap: 12,
+        overflowY: 'auto',
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
           <div style={{ font: '800 17px Manrope, sans-serif' }}>{photoTaken ? 'Photo captured!' : 'Frame the whole defect'}</div>
