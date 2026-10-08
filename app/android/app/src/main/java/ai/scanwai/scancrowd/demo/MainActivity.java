@@ -12,7 +12,9 @@ public class MainActivity extends BridgeActivity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
+            // Immediate call for focus regain; also delayed for initial page load
             injectSystemInsets();
+            getWindow().getDecorView().postDelayed(this::injectSystemInsets, 800);
         }
     }
 

@@ -16,9 +16,11 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
   const [photoTaken, setPhotoTaken] = useState(false);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPinchDist = useRef<number | null>(null);
 
   // Start live camera viewfinder
   useEffect(() => {
@@ -96,13 +98,42 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         />
       ) : (
         <>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', objectFit: 'cover', background: '#10262e' }}
-          />
+          <div
+            style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', overflow: 'hidden', background: '#10262e' }}
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastPinchDist.current = Math.hypot(dx, dy);
+              }
+            }}
+            onTouchMove={(e) => {
+              if (e.touches.length === 2 && lastPinchDist.current !== null) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.hypot(dx, dy);
+                const ratio = dist / lastPinchDist.current;
+                setZoomScale((z) => Math.min(5, Math.max(1, z * ratio)));
+                lastPinchDist.current = dist;
+              }
+            }}
+            onTouchEnd={() => { lastPinchDist.current = null; }}
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: `scale(${zoomScale})`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.05s linear',
+              }}
+            />
+          </div>
           {!cameraReady && (
             <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#10262e' }}>
               <span style={{ font: '600 14px Manrope, sans-serif', color: '#a9b8bd' }}>Starting camera…</span>
@@ -179,17 +210,18 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         </button>
       </div>
 
-      {/* Bottom panel */}
+      {/* Bottom panel — no fixed height, content sizes naturally with padding */}
       <div style={{
         position: 'absolute',
         left: 0,
         right: 0,
         bottom: 0,
-        height: 'calc(260px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))',
         background: '#0c1d24',
         borderRadius: '28px 28px 0 0',
         borderTop: '1px solid #2a4650',
-        padding: '18px 16px',
+        paddingTop: 18,
+        paddingLeft: 16,
+        paddingRight: 16,
         paddingBottom: 'calc(24px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)))',
         boxSizing: 'border-box',
         display: 'flex',
