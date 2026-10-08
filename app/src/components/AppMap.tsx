@@ -19,15 +19,18 @@ interface Props {
   issues: Issue[];
   centerLat: number;
   centerLon: number;
+  userLat?: number;
+  userLon?: number;
   onStreetsReady?: (streets: StreetPoint[]) => void;
   onIssueTap?: (id: string) => void;
 }
 
-export default function AppMap({ issues, centerLat, centerLon, onStreetsReady, onIssueTap }: Props) {
+export default function AppMap({ issues, centerLat, centerLon, userLat, userLon, onStreetsReady, onIssueTap }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import('maplibre-gl').Map | null>(null);
   const MarkerRef = useRef<typeof import('maplibre-gl').Marker | null>(null);
   const markersRef = useRef<import('maplibre-gl').Marker[]>([]);
+  const userMarkerRef = useRef<import('maplibre-gl').Marker | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const streetsReadyRef = useRef(false);
@@ -98,13 +101,38 @@ export default function AppMap({ issues, centerLat, centerLon, onStreetsReady, o
       clearTimeout(failTimeout);
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
       setMapLoaded(false);
     };
   }, [centerLat, centerLon]); // reinit only when position changes >1km (controlled by parent)
 
-  // Sync markers when issues change or map finishes loading
+  // User position marker ("you are here" blue dot)
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current || !MarkerRef.current) return;
+    const MLMarker = MarkerRef.current;
+    const map = mapRef.current;
+    const lat = userLat ?? centerLat;
+    const lon = userLon ?? centerLon;
+
+    userMarkerRef.current?.remove();
+
+    const el = document.createElement('div');
+    el.style.cssText = `
+      width:18px;height:18px;
+      border-radius:50%;
+      background:#4a90e2;
+      border:3px solid #ffffff;
+      box-shadow:0 0 0 3px rgba(74,144,226,0.35), 0 2px 8px rgba(0,0,0,0.5);
+    `;
+    userMarkerRef.current = new MLMarker({ element: el, anchor: 'center' })
+      .setLngLat([lon, lat])
+      .addTo(map);
+  }, [mapLoaded, userLat, userLon, centerLat, centerLon]);
+
+  // Sync issue markers when issues change or map finishes loading
   useEffect(() => {
     if (!mapLoaded || !mapRef.current || !MarkerRef.current) return;
     const MLMarker = MarkerRef.current;

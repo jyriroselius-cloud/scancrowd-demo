@@ -40,6 +40,7 @@ export function App() {
   const [sentIssue, setSentIssue] = useState<Issue | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
+  const [gpsPos, setGpsPos] = useState<{ lat: number; lon: number } | null>(null);
 
   const demoTimerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
   const watchIdRef = useRef<string | null>(null);
@@ -47,12 +48,17 @@ export function App() {
   const seedRef = useRef<number | undefined>(undefined);
   const streetsAppliedRef = useRef(false);
 
-  // Bottom nav-bar inset via visualViewport
+  // Bottom nav-bar inset: native code (MainActivity) sets --safe-bottom directly via evaluateJavascript.
+  // This effect handles keyboard pop-up (visualViewport shrinks) and polls briefly for native value.
   useEffect(() => {
     const updateInset = () => {
       const vvh = window.visualViewport?.height ?? window.innerHeight;
-      const inset = Math.max(0, Math.round(window.innerHeight - vvh));
-      document.documentElement.style.setProperty('--safe-bottom', `${inset}px`);
+      const keyboard = Math.max(0, Math.round(window.innerHeight - vvh));
+      if (keyboard > 0) {
+        // Keyboard is shown — override native value temporarily
+        document.documentElement.style.setProperty('--safe-bottom', `${keyboard}px`);
+      }
+      // When keyboard is hidden, native MainActivity value stays (set by onWindowFocusChanged)
     };
     updateInset();
     window.visualViewport?.addEventListener('resize', updateInset);
@@ -125,6 +131,7 @@ export function App() {
     streetsAppliedRef.current = false;
     setSeedOverride(seed);
     setCityData(cd);
+    setGpsPos({ lat, lon });
     setGenerated(generateData(cd, seed));
   }
 
@@ -303,6 +310,8 @@ export function App() {
           cityData={cityData}
           userReports={reports}
           points={points}
+          userLat={gpsPos?.lat}
+          userLon={gpsPos?.lon}
           onCapture={() => navigate('capture')}
           onIssueSelect={(id) => { setSelectedIssueId(id); navigate('tracking'); }}
           onActivity={() => goTab('activity')}

@@ -1,5 +1,22 @@
 # ScanCrowd Demo — Changelog
 
+## [0.2.7] — 2026-10-08
+versionCode 18
+
+### Fixed
+- **GPS käytti checkPermissions() → requestPermissions()**: `checkPermissions()` ei pyydä lupaa käyttäjältä, vain tarkistaa nykyisen tilan. `requestPermissions()` hoitaa sekä 'prompt'- että 'granted'-tilat oikein — GPS toimii nyt ensimmäisellä asennuksella.
+- **15 s timeout (aiemmin 8 s)**: riittää hitaampiin GPS-signaaleihin (sisätilat, pilvisyys)
+- **Virheenkäsittely**: catch-blokki näyttää CityPickerin hiljaa failaamisen sijaan
+- **Build-prosessin vika**: v0.2.1–v0.2.6 APK:t sisälsivät vanhaa JS:ää koska `npm run build` puuttui `cap sync`:n edeltä — korjattu build-prosessissa
+
+### Tested
+- Real device Samsung SM-A266B (Android 16, adb RZCY90GPL6H)
+- GPS-sijainti Fuengirola (Espanja) tunnistettu oikein
+- MapLibre näyttää espanjankieliset kadunnimet: Avenida de las Salinas, Calle Las Deblas
+- Hotel ILUNION Fuengirola näkyy kartan läheisyydessä
+
+---
+
 ## [0.1.4] — 2026-10-07
 versionCode 5
 

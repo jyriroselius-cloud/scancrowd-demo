@@ -9,6 +9,8 @@ interface Props {
   cityData: CityData;
   userReports: Issue[];
   points: number;
+  userLat?: number;
+  userLon?: number;
   onCapture: () => void;
   onIssueSelect: (id: string) => void;
   onActivity: () => void;
@@ -56,7 +58,7 @@ const CATEGORY_ICON: Record<Category, React.ReactNode> = {
   ),
 };
 
-export default function Home({ generated, cityData, userReports, points, onCapture, onIssueSelect, onActivity, onLeaderboard, onSettings, onReset, onStreetsReady }: Props) {
+export default function Home({ generated, cityData, userReports, points, userLat, userLon, onCapture, onIssueSelect, onActivity, onLeaderboard, onSettings, onReset, onStreetsReady }: Props) {
   const [filter, setFilter] = useState<Category | 'All'>('All');
   const [resetConfirm, setResetConfirm] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -96,6 +98,8 @@ export default function Home({ generated, cityData, userReports, points, onCaptu
         issues={allIssues}
         centerLat={cityData.lat}
         centerLon={cityData.lon}
+        userLat={userLat ?? cityData.lat}
+        userLon={userLon ?? cityData.lon}
         onStreetsReady={onStreetsReady}
         onIssueTap={onIssueSelect}
       />
