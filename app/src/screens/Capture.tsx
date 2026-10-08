@@ -15,8 +15,33 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
   const [aiCategory, setAiCategory] = useState<Category | null>(null);
   const [photoTaken, setPhotoTaken] = useState(false);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const aiTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Start live camera viewfinder
+  useEffect(() => {
+    navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 960 } } })
+      .then((stream) => {
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          setCameraReady(true);
+        }
+      })
+      .catch(() => {
+        // Camera not available — will show placeholder
+      });
+
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      if (aiTimer.current) clearTimeout(aiTimer.current);
+    };
+  }, []);
+
+  // GPS accuracy
   useEffect(() => {
     (async () => {
       try {
@@ -27,33 +52,28 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         setGpsAccuracy(null);
       }
     })();
-    return () => { if (aiTimer.current) clearTimeout(aiTimer.current); };
   }, []);
 
-  const handleShutter = async () => {
-    try {
-      const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-      const photo = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.Base64,
-        source: CameraSource.Camera,
-      });
-      if (photo.base64String) {
-        setPhotoBase64(photo.base64String);
-        setPhotoTaken(true);
-        aiTimer.current = setTimeout(() => {
-          setAiCategory(selectedCategory);
-        }, 1000);
-      }
-    } catch {
-      // In browser fallback: simulate photo taken
-      setPhotoBase64('fallback');
-      setPhotoTaken(true);
-      aiTimer.current = setTimeout(() => {
-        setAiCategory(selectedCategory);
-      }, 1000);
-    }
+  const handleShutter = () => {
+    if (!videoRef.current || !cameraReady) return;
+
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 960;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+
+    // Stop stream — camera no longer needed after capture
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const base64 = dataUrl.replace('data:image/jpeg;base64,', '');
+    setPhotoBase64(base64);
+    setPhotoTaken(true);
+    aiTimer.current = setTimeout(() => setAiCategory(selectedCategory), 1000);
   };
 
   const handleSend = () => {
@@ -66,27 +86,33 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#08161b', fontFamily: 'Manrope, system-ui, sans-serif', color: '#ffffff' }}>
+
       {/* Camera view / photo preview */}
-      {photoTaken && photoBase64 && photoBase64 !== 'fallback' ? (
+      {photoTaken && photoBase64 ? (
         <img
           src={`data:image/jpeg;base64,${photoBase64}`}
           alt="Captured"
           style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', objectFit: 'cover' }}
         />
       ) : (
-        <svg width="100%" height="65%" viewBox="0 0 390 560" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', left: 0, top: 0 }} aria-hidden="true">
-          <rect width="390" height="560" fill="#10262e" />
-          <rect width="390" height="300" fill="#152f39" />
-          <path d="M150 300 L240 300 L390 560 L0 560 Z" fill="#0d1f25" />
-          <g transform="rotate(-9 255 230)">
-            <path d="M255 150 L305 238 L205 238 Z" fill="#e9eef0" fillOpacity="0.9" stroke="#c94f4f" strokeWidth="9" strokeLinejoin="round" />
-            <rect x="251" y="238" width="8" height="120" fill="#7f9097" />
-          </g>
-        </svg>
+        <>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', objectFit: 'cover', background: '#10262e' }}
+          />
+          {!cameraReady && (
+            <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#10262e' }}>
+              <span style={{ font: '600 14px Manrope, sans-serif', color: '#a9b8bd' }}>Starting camera…</span>
+            </div>
+          )}
+        </>
       )}
 
       {/* Framing guides */}
-      {!photoTaken && (
+      {!photoTaken && cameraReady && (
         <div style={{ position: 'absolute', left: '44%', top: '18%', width: '44%', height: '44%' }}>
           <span style={{ position: 'absolute', left: 0, top: 0, width: 28, height: 28, borderLeft: '4px solid #3ddc97', borderTop: '4px solid #3ddc97', borderRadius: '8px 0 0 0' }} />
           <span style={{ position: 'absolute', right: 0, top: 0, width: 28, height: 28, borderRight: '4px solid #3ddc97', borderTop: '4px solid #3ddc97', borderRadius: '0 8px 0 0' }} />
@@ -114,7 +140,7 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
       )}
 
       {/* Top bar */}
-      <div style={{ position: 'absolute', left: 16, right: 16, top: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+      <div style={{ position: 'absolute', left: 16, right: 16, top: 'calc(12px + var(--safe-top, env(safe-area-inset-top, 0px)))', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
         <button
           aria-label="Close camera"
           onClick={onClose}
@@ -133,11 +159,22 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         </div>
 
         <button
-          aria-label="Flash"
+          aria-label="Flip camera"
+          onClick={() => {
+            // Switch front/back camera
+            const current = streamRef.current?.getVideoTracks()[0];
+            const facing = (current?.getSettings().facingMode ?? 'environment') === 'environment' ? 'user' : 'environment';
+            streamRef.current?.getTracks().forEach((t) => t.stop());
+            navigator.mediaDevices?.getUserMedia({ video: { facingMode: facing } }).then((stream) => {
+              streamRef.current = stream;
+              if (videoRef.current) videoRef.current.srcObject = stream;
+            }).catch(() => {});
+          }}
           style={{ width: 44, height: 44, borderRadius: 22, background: 'rgba(12,29,36,0.75)', border: '1px solid #2a4650', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
-            <path d="M13 2L5 14h6l-1 8 8-12h-6z" />
+            <path d="M20 7h-3a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="13" r="3" />
           </svg>
         </button>
       </div>
@@ -196,18 +233,18 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
           <button
             aria-label="Take photo"
             onClick={handleShutter}
-            disabled={photoTaken}
+            disabled={photoTaken || !cameraReady}
             style={{
               width: 80,
               height: 80,
               borderRadius: 40,
-              border: '4px solid #3ddc97',
+              border: `4px solid ${cameraReady ? '#3ddc97' : '#4a6670'}`,
               boxSizing: 'border-box',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               background: 'transparent',
-              cursor: photoTaken ? 'default' : 'pointer',
+              cursor: photoTaken || !cameraReady ? 'default' : 'pointer',
             }}
           >
             <span style={{ width: 62, height: 62, borderRadius: 31, background: photoTaken ? '#3ddc97' : '#ffffff' }} />

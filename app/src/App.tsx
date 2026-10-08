@@ -48,21 +48,24 @@ export function App() {
   const seedRef = useRef<number | undefined>(undefined);
   const streetsAppliedRef = useRef(false);
 
-  // Bottom nav-bar inset: native code (MainActivity) sets --safe-bottom directly via evaluateJavascript.
-  // This effect handles keyboard pop-up (visualViewport shrinks) and polls briefly for native value.
+  // System insets: native MainActivity injects --safe-top and --safe-bottom via onWindowFocusChanged.
+  // This effect only overrides --safe-bottom when the keyboard is open.
   useEffect(() => {
-    const updateInset = () => {
+    // Ensure defaults so layout works before native fires
+    const el = document.documentElement;
+    if (!el.style.getPropertyValue('--safe-top')) el.style.setProperty('--safe-top', '0px');
+    if (!el.style.getPropertyValue('--safe-bottom')) el.style.setProperty('--safe-bottom', '0px');
+
+    const updateKeyboard = () => {
       const vvh = window.visualViewport?.height ?? window.innerHeight;
       const keyboard = Math.max(0, Math.round(window.innerHeight - vvh));
       if (keyboard > 0) {
-        // Keyboard is shown — override native value temporarily
-        document.documentElement.style.setProperty('--safe-bottom', `${keyboard}px`);
+        el.style.setProperty('--safe-bottom', `${keyboard}px`);
       }
-      // When keyboard is hidden, native MainActivity value stays (set by onWindowFocusChanged)
+      // When keyboard closes, native value is restored by onWindowFocusChanged
     };
-    updateInset();
-    window.visualViewport?.addEventListener('resize', updateInset);
-    return () => window.visualViewport?.removeEventListener('resize', updateInset);
+    window.visualViewport?.addEventListener('resize', updateKeyboard);
+    return () => window.visualViewport?.removeEventListener('resize', updateKeyboard);
   }, []);
 
   // Persist / restore storage

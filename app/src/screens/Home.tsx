@@ -105,7 +105,7 @@ export default function Home({ generated, cityData, userReports, points, userLat
       />
 
       {/* Top bar */}
-      <div style={{ position: 'absolute', left: 16, right: 16, top: 20, display: 'flex', flexDirection: 'column', gap: 10, zIndex: 10 }}>
+      <div style={{ position: 'absolute', left: 16, right: 16, top: 'calc(12px + var(--safe-top, env(safe-area-inset-top, 0px)))', display: 'flex', flexDirection: 'column', gap: 10, zIndex: 10 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <div style={{
             flexGrow: 1,
