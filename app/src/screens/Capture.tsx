@@ -228,7 +228,7 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         </button>
       </div>
 
-      {/* Bottom panel — fills from 65% to bottom, scrolls if content overflows */}
+      {/* Bottom panel: flex column, controls row pinned to bottom */}
       <div style={{
         position: 'absolute',
         left: 0,
@@ -238,48 +238,40 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         background: '#0c1d24',
         borderRadius: '28px 28px 0 0',
         borderTop: '1px solid #2a4650',
-        paddingTop: 18,
-        paddingLeft: 16,
-        paddingRight: 16,
-        paddingBottom: 'max(calc(var(--safe-bottom, 0px) + 16px), 40px)',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
-        overflowY: 'auto',
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
-          <div style={{ font: '800 17px Manrope, sans-serif' }}>{photoTaken ? 'Photo captured!' : 'Frame the whole defect'}</div>
-          <div style={{ font: '500 13px Manrope, sans-serif', color: '#a9b8bd' }}>Faces and plates are blurred before upload</div>
-        </div>
-
-        {/* Category chips */}
-        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              style={{
-                height: 34,
-                padding: '0 14px',
-                borderRadius: 17,
+        {/* Scrollable info + chips */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center' }}>
+            <div style={{ font: '800 16px Manrope, sans-serif' }}>{photoTaken ? 'Photo captured!' : 'Frame the whole defect'}</div>
+            <div style={{ font: '500 12px Manrope, sans-serif', color: '#a9b8bd' }}>Faces and plates are blurred before upload</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', scrollbarWidth: 'none' }}>
+            {CATEGORIES.map(cat => (
+              <button key={cat} onClick={() => setSelectedCategory(cat)} style={{
+                height: 32, padding: '0 12px', borderRadius: 16, flexShrink: 0, whiteSpace: 'nowrap', cursor: 'pointer',
                 background: selectedCategory === cat ? '#3ddc97' : '#132a33',
                 color: selectedCategory === cat ? '#06291b' : '#ffffff',
                 border: selectedCategory === cat ? 'none' : '1px solid #2a4650',
-                font: selectedCategory === cat ? '700 13px Manrope, sans-serif' : '600 13px Manrope, sans-serif',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-            >
-              {cat}
-            </button>
-          ))}
+                font: selectedCategory === cat ? '700 12px Manrope, sans-serif' : '600 12px Manrope, sans-serif',
+              }}>{cat}</button>
+            ))}
+          </div>
         </div>
 
-        {/* Controls row */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 12px' }}>
-          <div style={{ width: 52, height: 52, borderRadius: 12, background: '#1a3540', border: '2px solid #3ddc97', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 13px Manrope, sans-serif' }}>
+        {/* Controls row — always at bottom, never hidden */}
+        <div style={{
+          flexShrink: 0,
+          padding: '8px 28px',
+          paddingBottom: 'max(calc(var(--safe-bottom, 0px) + 10px), 34px)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderTop: '1px solid #1a3540',
+        }}>
+          <div style={{ width: 48, height: 48, borderRadius: 12, background: '#1a3540', border: '2px solid #3ddc97', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '800 13px Manrope, sans-serif' }}>
             1/3
           </div>
           <button
@@ -287,35 +279,28 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
             onClick={handleShutter}
             disabled={photoTaken || !cameraReady}
             style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
+              width: 72, height: 72, borderRadius: 36, boxSizing: 'border-box',
               border: `4px solid ${cameraReady ? '#3ddc97' : '#4a6670'}`,
-              boxSizing: 'border-box',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'transparent',
               cursor: photoTaken || !cameraReady ? 'default' : 'pointer',
             }}
           >
-            <span style={{ width: 62, height: 62, borderRadius: 31, background: photoTaken ? '#3ddc97' : '#ffffff' }} />
+            <span style={{ width: 56, height: 56, borderRadius: 28, background: photoTaken ? '#3ddc97' : '#ffffff' }} />
           </button>
           <button
             onClick={handleSend}
             disabled={!canSend}
             style={{
-              width: 64,
-              height: 44,
-              borderRadius: 22,
+              width: 60, height: 40, borderRadius: 20,
               background: canSend ? '#3ddc97' : '#132a33',
               border: canSend ? 'none' : '1px solid #2a4650',
               color: canSend ? '#06291b' : '#a9b8bd',
-              font: '700 14px Manrope, sans-serif',
+              font: '700 13px Manrope, sans-serif',
               cursor: canSend ? 'pointer' : 'default',
             }}
           >
-            Send
+            Next
           </button>
         </div>
       </div>

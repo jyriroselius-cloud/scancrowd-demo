@@ -12,6 +12,7 @@ import type { DemoSpeed } from './lib/storage';
 import Welcome from './screens/Welcome';
 import Home from './screens/Home';
 import Capture from './screens/Capture';
+import LocationConfirm from './screens/LocationConfirm';
 import ReportDetails from './screens/ReportDetails';
 import Sent from './screens/Sent';
 import IssueTracking from './screens/IssueTracking';
@@ -21,7 +22,7 @@ import Settings from './screens/Settings';
 import CityPicker from './components/CityPicker';
 
 type AppScreen =
-  | 'welcome' | 'home' | 'capture' | 'details'
+  | 'welcome' | 'home' | 'capture' | 'location_confirm' | 'details'
   | 'sent' | 'tracking' | 'activity' | 'leaderboard' | 'settings';
 
 export function App() {
@@ -194,7 +195,7 @@ export function App() {
   const handlePhotoTaken = (photo: string, cat: Category) => {
     setPendingPhoto(photo);
     setPendingCategory(cat);
-    navigate('details');
+    navigate('location_confirm');
   };
 
   const handleSendReport = async (note: string, cat: Category) => {
@@ -327,6 +328,17 @@ export function App() {
 
     case 'capture':
       return <Capture cityData={cityData} onPhoto={handlePhotoTaken} onClose={back} />;
+
+    case 'location_confirm':
+      return (
+        <LocationConfirm
+          photo={pendingPhoto ?? ''}
+          category={pendingCategory ?? 'Other'}
+          cityData={cityData}
+          onConfirm={() => { setHistory((h) => [...h, 'location_confirm']); setScreen('details'); }}
+          onBack={back}
+        />
+      );
 
     case 'details':
       return (
