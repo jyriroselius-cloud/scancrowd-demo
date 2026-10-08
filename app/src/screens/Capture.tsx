@@ -41,7 +41,6 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        e.preventDefault();
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         lastPinchDist.current = Math.hypot(dx, dy);
@@ -49,7 +48,7 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
     };
     const onTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && lastPinchDist.current !== null) {
-        e.preventDefault();
+        e.preventDefault(); // prevent scroll while zooming
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const dist = Math.hypot(dx, dy);
@@ -131,7 +130,7 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         <>
           <div
             ref={viewfinderRef}
-            style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', overflow: 'hidden', background: '#10262e' }}
+            style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '65%', overflow: 'hidden', background: '#10262e', touchAction: 'none' }}
           >
             <video
               ref={videoRef}
