@@ -82,14 +82,14 @@ export function App() {
       try {
         const { Geolocation } = await import('@capacitor/geolocation');
 
-        // Check permission first
-        const perm = await Geolocation.checkPermissions();
-        if (perm.location === 'denied') {
+        // requestPermissions handles 'prompt', 'granted', and 'denied' in one call
+        const req = await Geolocation.requestPermissions();
+        if (req.location === 'denied') {
           setShowCityPicker(true);
           return;
         }
 
-        const pos = await Geolocation.getCurrentPosition({ timeout: 8000, enableHighAccuracy: false });
+        const pos = await Geolocation.getCurrentPosition({ timeout: 15000, enableHighAccuracy: false });
         const { latitude: lat, longitude: lon } = pos.coords;
         applyPosition(lat, lon);
 
@@ -103,7 +103,8 @@ export function App() {
         });
         watchIdRef.current = id;
       } catch {
-        // GPS unavailable — keep default city, let tiles determine streets
+        // Location services off or GPS timeout → let user pick city
+        setShowCityPicker(true);
       }
     })();
 
