@@ -33,10 +33,11 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 export default async function middleware(request: Request): Promise<Response | undefined> {
   const password = (process.env.DEMO_PASSWORD ?? '').trim();
 
-  // Fail closed in production when no password is set
+  // Fail closed on any Vercel deployment (VERCEL_ENV is set for production/preview/development).
+  // Only allow through in true local dev where VERCEL_ENV is undefined.
   if (!password) {
-    if (process.env.VERCEL_ENV === 'production') return unauthorized();
-    return undefined; // allow through in dev/preview
+    if (process.env.VERCEL_ENV) return unauthorized();
+    return undefined;
   }
 
   const auth = request.headers.get('Authorization') ?? '';
