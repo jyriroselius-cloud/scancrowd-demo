@@ -10,7 +10,7 @@ interface Props {
   headerSlot?: React.ReactNode;
 }
 
-const NAV: { id: Screen | 'contractors' | 'missions' | 'analytics' | 'settings'; label: string }[] = [
+const NAV: { id: Screen; label: string }[] = [
   { id: 'queue', label: 'Work queue' },
   { id: 'map', label: 'Map' },
   { id: 'contractors', label: 'Contractors' },
@@ -19,8 +19,6 @@ const NAV: { id: Screen | 'contractors' | 'missions' | 'analytics' | 'settings';
   { id: 'analytics', label: 'Analytics' },
   { id: 'settings', label: 'Settings' },
 ];
-
-const ACTIVE_SCREENS: Screen[] = ['queue', 'issue', 'map', 'leaderboard'];
 
 export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onReset, headerSlot }: Props) {
   return (
@@ -52,11 +50,10 @@ export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onRese
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {NAV.map((item) => {
           const active = item.id === 'issue' ? screen === 'issue' : item.id === screen;
-          const isClickable = (ACTIVE_SCREENS as string[]).includes(item.id);
           return (
             <button
               key={item.id}
-              onClick={() => isClickable && setScreen(item.id as Screen)}
+              onClick={() => setScreen(item.id)}
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -69,7 +66,7 @@ export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onRese
                 font: `${active ? 700 : 600} 14px Manrope, sans-serif`,
                 border: 0,
                 textAlign: 'left',
-                cursor: isClickable ? 'pointer' : 'default',
+                cursor: 'pointer',
               }}
             >
               {item.label}
@@ -119,6 +116,7 @@ export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onRese
             border: '1px solid var(--line)',
             color: 'var(--text2)',
             font: '600 12px Manrope, sans-serif',
+            cursor: 'pointer',
           }}
         >
           Demo data · Reset

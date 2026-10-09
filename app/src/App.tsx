@@ -19,11 +19,12 @@ import IssueTracking from './screens/IssueTracking';
 import Activity from './screens/Activity';
 import Leaderboard from './screens/Leaderboard';
 import Settings from './screens/Settings';
+import MapScreen from './screens/MapScreen';
 import CityPicker from './components/CityPicker';
 
 type AppScreen =
   | 'welcome' | 'home' | 'capture' | 'location_confirm' | 'details'
-  | 'sent' | 'tracking' | 'activity' | 'leaderboard' | 'settings';
+  | 'sent' | 'tracking' | 'activity' | 'leaderboard' | 'settings' | 'map';
 
 export function App() {
   const [cityData, setCityData] = useState<CityData>(defaultCity());
@@ -323,6 +324,7 @@ export function App() {
           onActivity={() => goTab('activity')}
           onLeaderboard={() => goTab('leaderboard')}
           onSettings={() => navigate('settings')}
+          onMap={() => navigate('map')}
           onReset={handleReset}
           onStreetsReady={handleStreetsReady}
         />
@@ -399,6 +401,19 @@ export function App() {
 
     case 'settings':
       return <Settings speed={speed} onSpeedChange={handleSpeedChange} onClose={back} />;
+
+    case 'map':
+      return (
+        <MapScreen
+          generated={generated}
+          cityData={cityData}
+          userReports={reports}
+          userLat={gpsPos?.lat}
+          userLon={gpsPos?.lon}
+          onIssueSelect={(id) => { setSelectedIssueId(id); navigate('tracking'); }}
+          onBack={back}
+        />
+      );
 
     default:
       return null;

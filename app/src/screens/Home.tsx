@@ -16,6 +16,7 @@ interface Props {
   onActivity: () => void;
   onLeaderboard: () => void;
   onSettings: () => void;
+  onMap: () => void;
   onReset: () => void;
   onStreetsReady?: (streets: StreetPoint[]) => void;
 }
@@ -58,7 +59,7 @@ const CATEGORY_ICON: Record<Category, React.ReactNode> = {
   ),
 };
 
-export default function Home({ generated, cityData, userReports, points, userLat, userLon, onCapture, onIssueSelect, onActivity, onLeaderboard, onSettings, onReset, onStreetsReady }: Props) {
+export default function Home({ generated, cityData, userReports, points, userLat, userLon, onCapture, onIssueSelect, onActivity, onLeaderboard, onSettings, onMap, onReset, onStreetsReady }: Props) {
   const [filter, setFilter] = useState<Category | 'All'>('All');
   const [resetConfirm, setResetConfirm] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -281,7 +282,7 @@ export default function Home({ generated, cityData, userReports, points, userLat
         </div>
       </div>
 
-      <TabBar active="home" onMap={() => {}} onActivity={onActivity} onCapture={onCapture} onRanks={onLeaderboard} onProfile={onSettings} />
+      <TabBar active="home" onMap={onMap} onActivity={onActivity} onCapture={onCapture} onRanks={onLeaderboard} onProfile={onSettings} />
     </div>
   );
 }

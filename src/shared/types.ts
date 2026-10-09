@@ -45,10 +45,41 @@ export interface StreetPoint {
   lon: number;
 }
 
+export interface Contractor {
+  id: string;
+  name: string;
+  type: 'crew' | 'contractor';
+  openJobs: number;
+  jobsThisWeek: number;
+  onTimeRate: number; // 0-100
+  avgDaysToFix: number;
+  assignedIssueIds: string[];
+}
+
+export interface Mission {
+  id: string;
+  name: string;
+  polygon: { lat: number; lon: number }[];
+  rewardRule: string;
+  budget: number;
+  spent: number;
+  participants: number;
+  status: 'Active' | 'Upcoming' | 'Completed';
+}
+
+export interface AppSettings {
+  categoryPriorities: Record<string, number>;
+  fixTimeTargets: Record<string, number>;
+  notificationTemplates: { accept: string; decline: string };
+  roles: { name: string; email: string; role: string }[];
+}
+
 export interface GeneratedData {
   issues: Issue[];
   reporters: Reporter[];
   kpis: Kpi[];
+  contractors: Contractor[];
+  missions: Mission[];
 }
 
 export interface Kpi {

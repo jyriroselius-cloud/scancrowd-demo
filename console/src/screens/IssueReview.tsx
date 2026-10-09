@@ -6,8 +6,10 @@ import IMAGE_COUNTS from 'virtual:image-counts';
 interface Props {
   issue: Issue;
   cityData: CityData;
+  allIssues: Issue[];
   onBack: () => void;
   onUpdate: (updated: Issue) => void;
+  onMerge: (sourceId: string, targetId: string) => void;
 }
 
 interface Detection {
@@ -90,12 +92,18 @@ const WEEKS = Array.from({ length: 8 }, (_, i) => {
   return `Week ${wk} · ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 });
 
-export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
+export function IssueReview({ issue, cityData, allIssues, onBack, onUpdate, onMerge }: Props) {
   const [crew, setCrew] = useState('Street maintenance · crew North');
   const [plannedWeek, setPlannedWeek] = useState(WEEKS[1]);
   const [message, setMessage] = useState(`Thanks for reporting! The repair is planned for ${WEEKS[1].split(' · ')[0]}.`);
   const [notify, setNotify] = useState(true);
   const [toast, setToast] = useState('');
+  const [showMerge, setShowMerge] = useState(false);
+
+  // Candidates: same category, different id, not declined/fixed
+  const mergeCandidates = allIssues
+    .filter((i) => i.id !== issue.id && i.category === issue.category && i.status !== 'Declined' && i.status !== 'Fixed')
+    .slice(0, 5);
   const [meta, setMeta] = useState<ImageMeta | null>(null);
   const [metaValid, setMetaValid] = useState<boolean | null>(null); // null = loading
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
@@ -211,7 +219,37 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button onClick={handleDecline} style={{ height: 44, padding: '0 18px', borderRadius: 12, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text)', font: '700 14px Manrope, sans-serif' }}>Decline</button>
-          <button style={{ height: 44, padding: '0 18px', borderRadius: 12, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text)', font: '700 14px Manrope, sans-serif' }}>Merge into…</button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowMerge((v) => !v)}
+              style={{ height: 44, padding: '0 18px', borderRadius: 12, background: 'transparent', border: '1px solid var(--line)', color: 'var(--text)', font: '700 14px Manrope, sans-serif', cursor: 'pointer' }}
+            >
+              Merge into…
+            </button>
+            {showMerge && (
+              <div style={{ position: 'absolute', top: '110%', right: 0, zIndex: 100, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: 12, minWidth: 260, boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+                <div style={{ font: '700 12px Manrope, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text2)', marginBottom: 8 }}>
+                  Merge into…
+                </div>
+                {mergeCandidates.length === 0 ? (
+                  <div style={{ font: '500 13px Manrope, sans-serif', color: 'var(--text3)' }}>No similar issues found.</div>
+                ) : (
+                  mergeCandidates.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => { onMerge(issue.id, c.id); setShowMerge(false); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 8, background: 'transparent', border: 0, color: 'var(--text)', cursor: 'pointer', font: '500 13px Manrope, sans-serif' }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--raised)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span style={{ fontWeight: 700 }}>{c.id}</span> — {c.title}
+                      <span style={{ color: 'var(--text2)', marginLeft: 6 }}>{c.address}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

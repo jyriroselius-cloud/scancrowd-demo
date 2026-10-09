@@ -1,5 +1,25 @@
 # ScanCrowd Demo — Changelog
 
+## [0.2.23] — 2026-10-09
+versionCode 34
+
+### Added
+- **Console — kaikki sivut toimivat**: Contractors, Missions and rewards, Leaderboard (Week/Month/Season + best report picker), Analytics (SVG-kaaviot + KPI-kortit), Settings (kategoriaprioriteetit, korjausaika-tavoitteet, ilmoituspohjat, kaupunkiasetus, roolit)
+- **Export CSV** WorkQueuessa — lataa tiedoston suoraan selaimelta
+- **Merge into...** IssueReview'ssa — dropdown saman kategorian issueille, yhdistää report-laskurin
+- **Mobile Map-näyttö** — Home-näytön karttanappi avaa täysruudun MapScreenin (takaisin-nappi + avointen issueiden laskuri)
+- **Playwright-testit** `tests/console-all-interactions.spec.ts` — 11 testiä kattavat kaikki sidebar-kohteet, Export CSV, suodatinsiput, Accept/Decline, Merge, Contractors, Leaderboard-välilehdet, Analytics SVG-kaaviot, Settings-syötteet, Missions-lomake; 11/11 läpi
+- **Kuvakaappaukset** `docs/verification/` — 9 screenshotin setti kaikista pääskuuluvista näytöistä
+
+### Changed
+- Sidebar: kaikki 7 kohdetta aktiivisia (ei enää "tulossa" -tilaa)
+
+### Tested
+- `npm --workspace console run build` — TypeScript virheetön
+- `npx playwright test tests/console-all-interactions.spec.ts` — 11/11 passed (21.4s)
+
+---
+
 ## [0.2.7] — 2026-10-08
 versionCode 18
 

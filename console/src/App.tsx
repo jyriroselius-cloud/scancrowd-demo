@@ -2,17 +2,34 @@ import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { generateData } from '@shared/generator';
 import { findCity, defaultCity, CITIES } from '@shared/cities/index';
 import { locationSeed } from '@shared/locationSeed';
-import type { CityData } from '@shared/types';
+import type { CityData, AppSettings } from '@shared/types';
 import type { GeneratedData, Issue, StreetPoint } from '@shared/types';
 import { ConsoleSidebar } from './components/ConsoleSidebar';
 import { WorkQueue } from './screens/WorkQueue';
 import { IssueReview } from './screens/IssueReview';
 import { ConsoleMap } from './screens/ConsoleMap';
 import { ConsoleLeaderboard } from './screens/ConsoleLeaderboard';
+import { ConsoleContractors } from './screens/ConsoleContractors';
+import { ConsoleMissions } from './screens/ConsoleMissions';
+import { ConsoleAnalytics } from './screens/ConsoleAnalytics';
+import { ConsoleSettings } from './screens/ConsoleSettings';
 
-export type Screen = 'queue' | 'issue' | 'map' | 'leaderboard';
+export type Screen = 'queue' | 'issue' | 'map' | 'leaderboard' | 'contractors' | 'missions' | 'analytics' | 'settings';
 
 type GeoStatus = 'requesting' | 'ready' | 'denied' | 'error';
+
+const DEFAULT_SETTINGS: AppSettings = {
+  categoryPriorities: { Pothole: 80, 'Traffic sign': 60, 'Road marking': 50, 'Street light': 55, Manhole: 45, Other: 40 },
+  fixTimeTargets: { Pothole: 7, 'Traffic sign': 14, 'Road marking': 21, 'Street light': 10, Manhole: 14, Other: 21 },
+  notificationTemplates: {
+    accept: 'Thanks for reporting! Your issue has been accepted and scheduled for repair.',
+    decline: 'Thanks for reporting! After review this issue has been declined.',
+  },
+  roles: [
+    { name: 'City Admin', email: 'admin@city.fi', role: 'Admin' },
+    { name: 'Field Staff', email: 'staff@city.fi', role: 'Staff' },
+  ],
+};
 
 function parseParams(): { cityName: string; lat?: number; lon?: number; customName?: string; seed?: number } {
   const p = new URLSearchParams(window.location.search);
@@ -34,7 +51,6 @@ export function App() {
   const seedRef = useRef<number | undefined>(params.seed);
   const streetsAppliedRef = useRef(false);
 
-  // If URL has explicit lat/lon or ?city=, skip geolocation
   const hasUrlOverride = params.lat !== undefined || params.cityName !== '';
 
   const initialCity: CityData = useMemo(() => {
@@ -47,11 +63,10 @@ export function App() {
 
   const [cityData, setCityData] = useState<CityData>(initialCity);
   const [data, setData] = useState<GeneratedData>(() => generateData(initialCity, params.seed));
-  // Default to 'ready' — Tampere is the default city, no auto geolocation
   const [geoStatus, setGeoStatus] = useState<GeoStatus>('ready');
-
   const [screen, setScreen] = useState<Screen>('queue');
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   function applyPosition(lat: number, lon: number, name = 'Nearby') {
     const seed = locationSeed(lat, lon);
@@ -93,6 +108,30 @@ export function App() {
       issues: prev.issues.map((i) => (i.id === updated.id ? updated : i)),
     }));
     setSelectedIssue(updated);
+  }
+
+  function handleMerge(sourceId: string, targetId: string) {
+    const src = data.issues.find((i) => i.id === sourceId);
+    setData((prev) => ({
+      ...prev,
+      issues: prev.issues.map((i) => {
+        if (i.id === targetId) return { ...i, reports: i.reports + (src?.reports ?? 1) };
+        if (i.id === sourceId) return { ...i, status: 'Declined' };
+        return i;
+      }),
+    }));
+    setScreen('queue');
+  }
+
+  function handleReassign(issueId: string, fromId: string, toId: string) {
+    setData((prev) => ({
+      ...prev,
+      contractors: prev.contractors.map((c) => {
+        if (c.id === fromId) return { ...c, assignedIssueIds: c.assignedIssueIds.filter((id) => id !== issueId) };
+        if (c.id === toId) return { ...c, assignedIssueIds: [...c.assignedIssueIds, issueId] };
+        return c;
+      }),
+    }));
   }
 
   const header = (
@@ -166,8 +205,10 @@ export function App() {
           <IssueReview
             issue={selectedIssue}
             cityData={cityData}
+            allIssues={data.issues}
             onBack={() => setScreen('queue')}
             onUpdate={updateIssue}
+            onMerge={handleMerge}
           />
         )}
         {screen === 'map' && (
@@ -175,6 +216,31 @@ export function App() {
         )}
         {screen === 'leaderboard' && (
           <ConsoleLeaderboard reporters={data.reporters} />
+        )}
+        {screen === 'contractors' && (
+          <ConsoleContractors data={data} onReassign={handleReassign} />
+        )}
+        {screen === 'missions' && (
+          <ConsoleMissions
+            data={data}
+            cityData={cityData}
+            onAddMission={(m) => setData((prev) => ({ ...prev, missions: [...prev.missions, m] }))}
+          />
+        )}
+        {screen === 'analytics' && (
+          <ConsoleAnalytics data={data} />
+        )}
+        {screen === 'settings' && (
+          <ConsoleSettings
+            settings={appSettings}
+            onUpdate={setAppSettings}
+            cityData={cityData}
+            onCityUpdate={(name, lat, lon) => {
+              const cd: CityData = { ...cityData, name, lat, lon };
+              setCityData(cd);
+              setData(generateData(cd));
+            }}
+          />
         )}
       </main>
     </div>

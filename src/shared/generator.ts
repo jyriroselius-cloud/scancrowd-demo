@@ -1,4 +1,4 @@
-import type { Issue, Reporter, GeneratedData, Kpi, Category, Status } from './types';
+import type { Issue, Reporter, GeneratedData, Kpi, Category, Status, Contractor, Mission } from './types';
 import type { CityData } from './types';
 
 // Mulberry32 PRNG — deterministic, seedable
@@ -227,5 +227,64 @@ export function generateData(cityData: CityData, seedOverride?: number): Generat
     },
   ];
 
-  return { issues, reporters, kpis };
+  // Contractors — 4 internal crews + 2 external contractors
+  const CREW_NAMES = ['Crew North', 'Crew South', 'Crew East', 'Crew West'];
+  const CONTRACTOR_NAMES = ['Lemminkäinen Infra', 'YIT Road Services'];
+
+  const contractors: Contractor[] = [
+    ...CREW_NAMES.map((name, i) => {
+      const slice = issues.filter((_, j) => j % 4 === i).slice(0, 8 + Math.floor(rng() * 6));
+      return {
+        id: `crew-${i + 1}`,
+        name: `Street maintenance · ${name}`,
+        type: 'crew' as const,
+        openJobs: 3 + Math.floor(rng() * 8),
+        jobsThisWeek: 1 + Math.floor(rng() * 5),
+        onTimeRate: 72 + Math.floor(rng() * 26),
+        avgDaysToFix: 4 + Math.floor(rng() * 8),
+        assignedIssueIds: slice.map((iss) => iss.id),
+      };
+    }),
+    ...CONTRACTOR_NAMES.map((name, i) => {
+      const slice = issues.filter((_, j) => j % 6 === i).slice(0, 4 + Math.floor(rng() * 4));
+      return {
+        id: `contractor-${i + 1}`,
+        name,
+        type: 'contractor' as const,
+        openJobs: 2 + Math.floor(rng() * 5),
+        jobsThisWeek: 1 + Math.floor(rng() * 3),
+        onTimeRate: 65 + Math.floor(rng() * 30),
+        avgDaysToFix: 5 + Math.floor(rng() * 10),
+        assignedIssueIds: slice.map((iss) => iss.id),
+      };
+    }),
+  ];
+
+  // Missions — 3 missions with polygon areas
+  const MISSION_NAMES = ['Hervanta Road Safety', 'Kaleva District', 'Tampere Centre'];
+  const MISSION_RULES = ['€2 per pothole fixed', '€1.50 per item', '€3 per km surveyed'];
+  const missionStatuses: Mission['status'][] = ['Active', 'Active', 'Upcoming'];
+  const missions: Mission[] = MISSION_NAMES.map((name, i) => {
+    const baseLat = cityData.lat + (rng() - 0.5) * 0.04;
+    const baseLon = cityData.lon + (rng() - 0.5) * 0.06;
+    const r = 0.008 + rng() * 0.006;
+    const polygon = Array.from({ length: 6 }, (_, k) => {
+      const angle = (k / 6) * Math.PI * 2 + rng() * 0.5;
+      return { lat: baseLat + Math.cos(angle) * r, lon: baseLon + Math.sin(angle) * r * 1.5 };
+    });
+    const budget = 800 + Math.floor(rng() * 1200);
+    const spent = Math.floor(budget * (0.2 + rng() * 0.6));
+    return {
+      id: `mission-${i + 1}`,
+      name,
+      polygon,
+      rewardRule: MISSION_RULES[i % MISSION_RULES.length],
+      budget,
+      spent,
+      participants: 3 + Math.floor(rng() * 12),
+      status: missionStatuses[i],
+    };
+  });
+
+  return { issues, reporters, kpis, contractors, missions };
 }

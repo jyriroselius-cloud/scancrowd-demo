@@ -17,6 +17,23 @@ export function WorkQueue({ data, cityData, onOpenIssue }: Props) {
   const [filter, setFilter] = useState<Filter>('All');
   const [search, setSearch] = useState('');
 
+  function exportCSV() {
+    const headers = ['ID', 'Title', 'Category', 'Status', 'Priority', 'Severity', 'Reports', 'Address', 'First Reported', 'Planned Week'];
+    const rows = data.issues.map((i) => [
+      i.id, i.title, i.category, i.status, i.priority, i.severity, i.reports, i.address, i.firstReported, i.plannedWeek ?? '',
+    ]);
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `scancrowd-issues-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     data.issues.forEach((i) => { c[i.status] = (c[i.status] ?? 0) + 1; });
@@ -55,7 +72,7 @@ export function WorkQueue({ data, cityData, onOpenIssue }: Props) {
               style={{ width: 200, background: 'transparent', border: 0, outline: 'none', color: 'var(--text)', font: '500 14px Manrope, sans-serif' }}
             />
           </label>
-          <button style={{ height: 42, padding: '0 16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', font: '700 14px Manrope, sans-serif' }}>Export CSV</button>
+          <button onClick={exportCSV} style={{ height: 42, padding: '0 16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)', font: '700 14px Manrope, sans-serif', cursor: 'pointer' }}>Export CSV</button>
         </div>
       </div>
 
