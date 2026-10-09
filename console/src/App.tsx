@@ -197,7 +197,7 @@ export function App() {
         onReset={resetData}
         headerSlot={header}
       />
-      <main style={{ flex: '999 1 560px', minWidth: 0, padding: '28px 32px 40px', boxSizing: 'border-box' }}>
+      <main className="console-main" style={{ flex: '999 1 560px', minWidth: 0, padding: '28px 32px 40px', boxSizing: 'border-box' }}>
         {screen === 'queue' && (
           <WorkQueue data={data} cityData={cityData} onOpenIssue={openIssue} />
         )}

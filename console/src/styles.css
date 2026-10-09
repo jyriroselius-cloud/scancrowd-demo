@@ -44,3 +44,12 @@ input, select, textarea { font-family: inherit; }
 
 /* MapLibre reset */
 .maplibregl-map { font-family: inherit !important; }
+
+/* Mobile: hamburger button pushes content down, full width */
+@media (max-width: 819px) {
+  .console-main {
+    padding-top: 72px !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
