@@ -4,13 +4,13 @@
   "height": 720,
   "detections": [
     {
-      "label": "pothole",
+      "label": "crocodile_crack",
       "confidence": 0.0,
       "box": [
-        457.8,
-        683.2,
-        72.4,
-        35.1
+        118.4,
+        587.5,
+        289.9,
+        124.1
       ]
     }
   ]

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Issue, CityData } from '@shared/types';
 import { StatusPill } from '../components/StatusPill';
+import IMAGE_COUNTS from 'virtual:image-counts';
 
 interface Props {
   issue: Issue;
@@ -32,16 +33,8 @@ const FOLDER_MAP: Record<string, string> = {
   Other:          'crack',
 };
 
-// Known image counts per folder (updated when images are added)
-const IMAGE_COUNTS: Record<string, number> = {
-  pothole: 6,
-  crack:   12,
-  sign:    0,
-  manhole: 0,
-  marking: 0,
-  gravel:  0,
-  night:   0,
-};
+// IMAGE_COUNTS is injected at build time from virtual:image-counts
+// (reads console/public/images/ — never goes out of sync)
 
 // Mulberry32 mini-hash for picking an image index by issue id
 function hashId(id: string): number {

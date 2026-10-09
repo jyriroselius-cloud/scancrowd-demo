@@ -1,0 +1,47 @@
+{
+  "category": "pothole",
+  "width": 1280,
+  "height": 720,
+  "detections": [
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        455.2,
+        505.5,
+        58.8,
+        22.3
+      ]
+    },
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        455.2,
+        505.5,
+        58.8,
+        22.3
+      ]
+    },
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        521.2,
+        495.1,
+        38.0,
+        20.1
+      ]
+    },
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        1024.8,
+        492.5,
+        25.6,
+        10.9
+      ]
+    }
+  ]
+}

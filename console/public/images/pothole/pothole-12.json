@@ -4,13 +4,13 @@
   "height": 720,
   "detections": [
     {
-      "label": "pothole",
+      "label": "line_crack",
       "confidence": 0.0,
       "box": [
-        457.8,
-        683.2,
-        72.4,
-        35.1
+        236.7,
+        520.7,
+        395.4,
+        196.9
       ]
     }
   ]

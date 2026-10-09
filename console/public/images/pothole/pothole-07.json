@@ -1,0 +1,47 @@
+{
+  "category": "pothole",
+  "width": 1280,
+  "height": 720,
+  "detections": [
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        272.3,
+        639.2,
+        135.4,
+        65.0
+      ]
+    },
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        272.3,
+        639.2,
+        135.4,
+        65.0
+      ]
+    },
+    {
+      "label": "crocodile_crack",
+      "confidence": 0.0,
+      "box": [
+        9.6,
+        544.2,
+        568.6,
+        167.5
+      ]
+    },
+    {
+      "label": "crocodile_crack",
+      "confidence": 0.0,
+      "box": [
+        469.4,
+        473.8,
+        132.3,
+        64.0
+      ]
+    }
+  ]
+}
