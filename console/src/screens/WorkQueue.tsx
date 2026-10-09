@@ -150,6 +150,7 @@ export function WorkQueue({ data, cityData, onOpenIssue }: Props) {
             centerLat={cityData.lat}
             centerLon={cityData.lon}
             height={380}
+            onClickIssue={onOpenIssue}
           />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, font: '600 12px Manrope, sans-serif', color: 'var(--text3)' }}>
             {[['New', 'var(--new)'], ['Accepted', 'var(--accepted)'], ['In repair', 'var(--repair)'], ['Fixed', 'var(--fixed)']].map(([label, bg]) => (

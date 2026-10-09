@@ -86,7 +86,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
   }, [centerLat, centerLon, zoom, failed]);
 
   if (failed) {
-    return <FallbackMap issues={issues} centerLat={centerLat} centerLon={centerLon} height={height} />;
+    return <FallbackMap issues={issues} centerLat={centerLat} centerLon={centerLon} height={height} showNote onClickIssue={onClickIssue} />;
   }
 
   return (

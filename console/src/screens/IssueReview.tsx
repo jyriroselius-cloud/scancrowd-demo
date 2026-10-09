@@ -33,6 +33,25 @@ const FOLDER_MAP: Record<string, string> = {
   Other:          'crack',
 };
 
+// ScanwAi detection labels expected for each Issue category.
+// An image is only valid for a category if its sidecar has ≥1 matching label.
+const CATEGORY_LABELS: Record<string, string[]> = {
+  Pothole:        ['pothole', 'crocodile_crack'],
+  Other:          ['line_crack', 'crack'],
+  'Street light': ['pothole', 'crocodile_crack'],
+  Manhole:        ['manhole_cover', 'manhole'],
+  'Traffic sign': ['traffic_sign', 'sign'],
+  'Road marking': ['road_marking', 'marking'],
+};
+
+function detectionsMatchCategory(category: string, detections: Detection[]): boolean {
+  const expected = CATEGORY_LABELS[category];
+  if (!expected) return true;
+  return detections.some((d) =>
+    expected.some((lbl) => d.label === lbl || d.label.includes(lbl) || lbl.includes(d.label))
+  );
+}
+
 // IMAGE_COUNTS is injected at build time from virtual:image-counts
 // (reads console/public/images/ — never goes out of sync)
 
@@ -47,7 +66,7 @@ function getImagePath(issue: Issue): string | null {
   const folder = FOLDER_MAP[issue.category] ?? null;
   if (!folder) return null;
   const count = IMAGE_COUNTS[folder] ?? 0;
-  if (count === 0) return null; // no images yet for this category
+  if (count === 0) return null;
   return getImagePathFor(folder, issue.id, count);
 }
 
@@ -57,10 +76,17 @@ function getImagePathFor(folder: string, id: string, count: number): string {
   return `/images/${folder}/${folder}-${n}`;
 }
 
+function isoWeek(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
 const WEEKS = Array.from({ length: 8 }, (_, i) => {
   const d = new Date();
-  d.setDate(d.getDate() + i * 7 + 1);
-  const wk = Math.ceil((d.getDate() + new Date(d.getFullYear(), 0, 1).getDay()) / 7);
+  d.setDate(d.getDate() + (i + 1) * 7);
+  const wk = isoWeek(d);
   return `Week ${wk} · ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 });
 
@@ -71,22 +97,32 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
   const [notify, setNotify] = useState(true);
   const [toast, setToast] = useState('');
   const [meta, setMeta] = useState<ImageMeta | null>(null);
+  const [metaValid, setMetaValid] = useState<boolean | null>(null); // null = loading
   const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
   const basePath = getImagePath(issue);
-  const imgSrc = basePath ? `${basePath}.jpg` : null;
   const metaUrl = basePath ? `${basePath}.json` : null;
+  // Show image only after sidecar confirms category match (null = still loading, show img optimistically)
+  const imgSrc = basePath && metaValid !== false ? `${basePath}.jpg` : null;
 
-  // Load sidecar JSON
+  // Load sidecar JSON and validate category match
   useEffect(() => {
-    if (!metaUrl) return;
+    if (!metaUrl) { setMeta(null); setMetaValid(null); return; }
     setMeta(null);
+    setMetaValid(null);
     fetch(metaUrl)
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => setMeta(d))
-      .catch(() => {});
-  }, [metaUrl]);
+      .then((d: ImageMeta | null) => {
+        setMeta(d);
+        if (d) {
+          setMetaValid(detectionsMatchCategory(issue.category, d.detections));
+        } else {
+          setMetaValid(null); // no sidecar: allow image (legacy)
+        }
+      })
+      .catch(() => { setMetaValid(null); });
+  }, [metaUrl, issue.category]);
 
   // Track rendered image size for box scaling
   useEffect(() => {
@@ -215,17 +251,40 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
                 </div>
               )}
             </div>
-            {/* Credit line */}
-            <div style={{ font: '500 11px Manrope, sans-serif', color: 'var(--text3)', textAlign: 'right' }}>
-              Detections by ScanwAi
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
-              {[0, 1, 2, 3].map((i) => (
-                <span key={i} style={{ height: 64, borderRadius: 10, background: 'var(--raised)', border: i === 0 ? '2px solid var(--mint)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', font: '700 13px Manrope, sans-serif', color: 'var(--text2)' }}>
-                  {i === 3 && issue.reports > 4 ? `+${issue.reports - 4}` : ''}
-                </span>
-              ))}
-            </div>
+            {/* Credit line — only when photo is shown */}
+            {imgSrc && (
+              <div style={{ font: '500 11px Manrope, sans-serif', color: 'var(--text3)', textAlign: 'right' }}>
+                Detections by ScanwAi
+              </div>
+            )}
+            {/* Thumbnail strip — show up to 4 other images from the same category */}
+            {(() => {
+              const folder = FOLDER_MAP[issue.category];
+              const count = folder ? (IMAGE_COUNTS[folder] ?? 0) : 0;
+              if (count < 2 || !folder) return null;
+              const mainIdx = (hashId(issue.id) % count) + 1;
+              const thumbs: number[] = [];
+              for (let k = 1; k <= count && thumbs.length < 4; k++) {
+                const idx = (mainIdx % count) + k > count ? k : (mainIdx + k - 1) % count + 1;
+                if (idx !== mainIdx) thumbs.push(idx);
+              }
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+                  {thumbs.map((idx) => {
+                    const n = String(idx).padStart(2, '0');
+                    const src = `/images/${folder}/${folder}-${n}.jpg`;
+                    return (
+                      <img
+                        key={idx}
+                        src={src}
+                        alt=""
+                        style={{ height: 64, width: '100%', objectFit: 'cover', borderRadius: 10, background: 'var(--raised)' }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </section>
 
           {/* AI analysis */}
