@@ -7,21 +7,7 @@ export const config = {
   matcher: ['/((?!favicon\\.svg|_vercel).*)'],
 };
 
-export default function middleware(request: Request): Response | undefined {
-  const password = (process.env.DEMO_PASSWORD ?? '').trim();
-
-  // If no password is configured, allow through (dev / initial deploy)
-  if (!password) return undefined;
-
-  const auth = request.headers.get('Authorization') ?? '';
-  if (auth.startsWith('Basic ')) {
-    const decoded = atob(auth.slice(6));
-    // Basic credentials are "user:password" — we only check the password half
-    const colon = decoded.indexOf(':');
-    const given = colon >= 0 ? decoded.slice(colon + 1) : decoded;
-    if (given === password) return undefined; // pass through to static files
-  }
-
+function unauthorized(): Response {
   return new Response('Unauthorized — ScanCrowd Demo', {
     status: 401,
     headers: {
@@ -29,4 +15,37 @@ export default function middleware(request: Request): Response | undefined {
       'Content-Type': 'text/plain',
     },
   });
+}
+
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [ka, kb] = await Promise.all([
+    crypto.subtle.digest('SHA-256', enc.encode(a)),
+    crypto.subtle.digest('SHA-256', enc.encode(b)),
+  ]);
+  const va = new Uint8Array(ka);
+  const vb = new Uint8Array(kb);
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
+}
+
+export default async function middleware(request: Request): Promise<Response | undefined> {
+  const password = (process.env.DEMO_PASSWORD ?? '').trim();
+
+  // Fail closed in production when no password is set
+  if (!password) {
+    if (process.env.VERCEL_ENV === 'production') return unauthorized();
+    return undefined; // allow through in dev/preview
+  }
+
+  const auth = request.headers.get('Authorization') ?? '';
+  if (auth.startsWith('Basic ')) {
+    const decoded = atob(auth.slice(6));
+    const colon = decoded.indexOf(':');
+    const given = colon >= 0 ? decoded.slice(colon + 1) : decoded;
+    if (await timingSafeEqual(given, password)) return undefined;
+  }
+
+  return unauthorized();
 }
