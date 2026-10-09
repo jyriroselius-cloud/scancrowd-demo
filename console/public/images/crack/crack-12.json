@@ -1,0 +1,27 @@
+{
+  "category": "crack",
+  "width": 1280,
+  "height": 720,
+  "detections": [
+    {
+      "label": "line_crack",
+      "confidence": 0.0,
+      "box": [
+        961.5,
+        482.9,
+        167.8,
+        231.9
+      ]
+    },
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        915.6,
+        492.7,
+        38.0,
+        40.0
+      ]
+    }
+  ]
+}

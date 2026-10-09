@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { generateData } from '@shared/generator';
 import { findCity, defaultCity, CITIES } from '@shared/cities/index';
 import { locationSeed } from '@shared/locationSeed';
@@ -47,27 +47,11 @@ export function App() {
 
   const [cityData, setCityData] = useState<CityData>(initialCity);
   const [data, setData] = useState<GeneratedData>(() => generateData(initialCity, params.seed));
-  const [geoStatus, setGeoStatus] = useState<GeoStatus>(hasUrlOverride ? 'ready' : 'requesting');
+  // Default to 'ready' — Tampere is the default city, no auto geolocation
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>('ready');
 
   const [screen, setScreen] = useState<Screen>('queue');
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-
-  // Browser geolocation on load (skip if URL override present)
-  useEffect(() => {
-    if (hasUrlOverride || !('geolocation' in navigator)) {
-      if (!hasUrlOverride) setGeoStatus('error');
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        applyPosition(lat, lon);
-        setGeoStatus('ready');
-      },
-      () => setGeoStatus('denied'),
-      { timeout: 8000, enableHighAccuracy: false },
-    );
-  }, []);
 
   function applyPosition(lat: number, lon: number, name = 'Nearby') {
     const seed = locationSeed(lat, lon);
@@ -113,6 +97,9 @@ export function App() {
 
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0 0 16px', marginBottom: 0 }}>
+      {geoStatus === 'requesting' && (
+        <span style={{ font: '500 13px Manrope', color: 'var(--text2)' }}>Locating…</span>
+      )}
       {geoStatus === 'denied' && (
         <select
           style={{
@@ -137,29 +124,27 @@ export function App() {
           {CITIES.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
         </select>
       )}
-      {geoStatus === 'requesting' && (
-        <span style={{ font: '500 13px Manrope', color: 'var(--text2)' }}>Locating…</span>
-      )}
-      {(geoStatus === 'error' || geoStatus === 'denied') && (
-        <button
-          style={{
-            height: 32, padding: '0 12px', borderRadius: 8,
-            background: 'var(--mint)', color: 'var(--mint-text)',
-            border: 'none', font: '700 13px Manrope', cursor: 'pointer',
-          }}
-          onClick={() => {
-            if (!('geolocation' in navigator)) return;
-            setGeoStatus('requesting');
-            navigator.geolocation.getCurrentPosition(
-              (pos) => { applyPosition(pos.coords.latitude, pos.coords.longitude); setGeoStatus('ready'); },
-              () => setGeoStatus('denied'),
-              { timeout: 8000 },
-            );
-          }}
-        >
-          Use my location
-        </button>
-      )}
+      <button
+        style={{
+          height: 32, padding: '0 12px', borderRadius: 8,
+          background: geoStatus === 'requesting' ? 'var(--surface)' : 'var(--mint)',
+          color: geoStatus === 'requesting' ? 'var(--text2)' : 'var(--mint-text)',
+          border: '1px solid var(--line)', font: '700 13px Manrope', cursor: 'pointer',
+          opacity: geoStatus === 'requesting' ? 0.6 : 1,
+        }}
+        disabled={geoStatus === 'requesting'}
+        onClick={() => {
+          if (!('geolocation' in navigator)) return;
+          setGeoStatus('requesting');
+          navigator.geolocation.getCurrentPosition(
+            (pos) => { applyPosition(pos.coords.latitude, pos.coords.longitude); setGeoStatus('ready'); },
+            () => setGeoStatus('denied'),
+            { timeout: 8000 },
+          );
+        }}
+      >
+        Use my location
+      </button>
     </div>
   );
 

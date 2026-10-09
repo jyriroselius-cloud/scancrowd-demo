@@ -1,0 +1,27 @@
+{
+  "category": "pothole",
+  "width": 1280,
+  "height": 682,
+  "detections": [
+    {
+      "label": "pothole",
+      "confidence": 0.0,
+      "box": [
+        854.7,
+        423.1,
+        64.7,
+        23.4
+      ]
+    },
+    {
+      "label": "line_crack",
+      "confidence": 0.0,
+      "box": [
+        1102.7,
+        391.8,
+        145.2,
+        87.2
+      ]
+    }
+  ]
+}

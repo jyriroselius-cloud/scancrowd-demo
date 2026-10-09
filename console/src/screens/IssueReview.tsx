@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Issue, CityData } from '@shared/types';
 import { StatusPill } from '../components/StatusPill';
 
@@ -9,6 +9,65 @@ interface Props {
   onUpdate: (updated: Issue) => void;
 }
 
+interface Detection {
+  label: string;
+  confidence: number;
+  box: [number, number, number, number]; // [x, y, w, h] in pixels at 1280px width
+}
+
+interface ImageMeta {
+  category: string;
+  width: number;
+  height: number;
+  detections: Detection[];
+}
+
+// Map Issue category to image folder
+const FOLDER_MAP: Record<string, string> = {
+  Pothole:        'pothole',
+  'Traffic sign': 'sign',
+  'Road marking': 'marking',
+  'Street light': 'pothole',
+  Manhole:        'manhole',
+  Other:          'crack',
+};
+
+// Known image counts per folder (updated when images are added)
+const IMAGE_COUNTS: Record<string, number> = {
+  pothole: 6,
+  crack:   12,
+  sign:    0,
+  manhole: 0,
+  marking: 0,
+  gravel:  0,
+  night:   0,
+};
+
+// Mulberry32 mini-hash for picking an image index by issue id
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function getImagePath(issue: Issue): string | null {
+  const folder = FOLDER_MAP[issue.category] ?? 'pothole';
+  let count = IMAGE_COUNTS[folder] ?? 0;
+  if (count === 0) {
+    // Fallback: pothole then crack
+    if (IMAGE_COUNTS.pothole > 0) { return getImagePathFor('pothole', issue.id, IMAGE_COUNTS.pothole); }
+    if (IMAGE_COUNTS.crack   > 0) { return getImagePathFor('crack',   issue.id, IMAGE_COUNTS.crack); }
+    return null;
+  }
+  return getImagePathFor(folder, issue.id, count);
+}
+
+function getImagePathFor(folder: string, id: string, count: number): string {
+  const idx = (hashId(id) % count) + 1;
+  const n = String(idx).padStart(2, '0');
+  return `/images/${folder}/${folder}-${n}`;
+}
+
 const WEEKS = Array.from({ length: 8 }, (_, i) => {
   const d = new Date();
   d.setDate(d.getDate() + i * 7 + 1);
@@ -16,23 +75,43 @@ const WEEKS = Array.from({ length: 8 }, (_, i) => {
   return `Week ${wk} · ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
 });
 
-const CATEGORY_SVG: Record<string, string> = {
-  Pothole: `<ellipse cx="50" cy="140" rx="80" ry="30" fill="#0d1a1f"/><ellipse cx="160" cy="110" rx="50" ry="18" fill="#0d1a1f"/>`,
-  'Traffic sign': `<g transform="rotate(-9 110 90)"><path d="M110 40 L155 115 L65 115 Z" fill="#e9eef0" fill-opacity="0.9" stroke="#c94f4f" stroke-width="7" stroke-linejoin="round"/><rect x="106" y="115" width="8" height="80" fill="#7f9097"/></g>`,
-  'Street light': `<rect x="95" y="20" width="10" height="120" fill="#4a6a78"/><path d="M105 20 Q160 20 160 60" stroke="#4a6a78" stroke-width="10" fill="none"/><ellipse cx="160" cy="65" rx="20" ry="10" fill="#ffe066"/>`,
-  Manhole: `<circle cx="110" cy="130" r="70" fill="#1c3038"/><circle cx="110" cy="130" r="55" fill="#0d1a1f"/><rect x="90" y="90" width="40" height="80" rx="4" fill="#1c3038"/>`,
-  'Road marking': `<rect x="0" y="120" width="220" height="60" fill="#22383f"/><rect x="30" y="135" width="40" height="12" fill="#ffffff" fill-opacity="0.3"/><rect x="120" y="135" width="40" height="12" fill="#ffffff" fill-opacity="0.3"/>`,
-  Other: `<rect x="20" y="100" width="180" height="80" rx="8" fill="#1c3038"/><path d="M20 100 L200 180" stroke="#0d1a1f" stroke-width="4"/>`,
-};
-
 export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
   const [crew, setCrew] = useState('Street maintenance · crew North');
   const [plannedWeek, setPlannedWeek] = useState(WEEKS[1]);
   const [message, setMessage] = useState(`Thanks for reporting! The repair is planned for ${WEEKS[1].split(' · ')[0]}.`);
   const [notify, setNotify] = useState(true);
   const [toast, setToast] = useState('');
+  const [meta, setMeta] = useState<ImageMeta | null>(null);
+  const [imgSize, setImgSize] = useState<{ w: number; h: number } | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  const svg = CATEGORY_SVG[issue.category] ?? CATEGORY_SVG['Other'];
+  const basePath = getImagePath(issue);
+  const imgSrc = basePath ? `${basePath}.jpg` : null;
+  const metaUrl = basePath ? `${basePath}.json` : null;
+
+  // Load sidecar JSON
+  useEffect(() => {
+    if (!metaUrl) return;
+    setMeta(null);
+    fetch(metaUrl)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => setMeta(d))
+      .catch(() => {});
+  }, [metaUrl]);
+
+  // Track rendered image size for box scaling
+  useEffect(() => {
+    if (!imgRef.current) return;
+    const el = imgRef.current;
+    function update() {
+      setImgSize({ w: el.clientWidth, h: el.clientHeight });
+    }
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [imgSrc]);
+
   const confidence = 85 + Math.floor(Math.abs(issue.id.charCodeAt(3) - 48) * 2);
 
   function handleAccept() {
@@ -46,6 +125,43 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
   function handleDecline() {
     onUpdate({ ...issue, status: 'Declined' });
     onBack();
+  }
+
+  // Render detection boxes scaled from source image dimensions to displayed size
+  function renderBoxes() {
+    if (!meta || !imgSize || meta.detections.length === 0) return null;
+    const scaleX = imgSize.w / meta.width;
+    const scaleY = imgSize.h / meta.height;
+    return (
+      <svg
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+        viewBox={`0 0 ${imgSize.w} ${imgSize.h}`}
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {meta.detections.map((d, i) => {
+          const [bx, by, bw, bh] = d.box;
+          const x = bx * scaleX, y = by * scaleY, w = bw * scaleX, h = bh * scaleY;
+          const label = d.label.replace(/_/g, ' ');
+          return (
+            <g key={i}>
+              <rect
+                x={x} y={y} width={w} height={h}
+                fill="none" stroke="var(--mint)" strokeWidth="2"
+              />
+              <rect x={x} y={Math.max(0, y - 20)} width={Math.min(label.length * 7.5 + 8, imgSize.w - x)} height={20}
+                fill="var(--mint)" />
+              <text
+                x={x + 4} y={Math.max(0, y - 6)}
+                fontFamily="Manrope, sans-serif" fontSize="11" fontWeight="700"
+                fill="var(--mint-text)"
+              >
+                {label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    );
   }
 
   return (
@@ -77,16 +193,31 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
         {/* left column */}
         <div style={{ flex: '3 1 520px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* photo */}
-          <section style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ borderRadius: 14, overflow: 'hidden', height: 280, background: '#152f39' }}>
-              <svg width="100%" height="280" viewBox="0 0 220 200" preserveAspectRatio="xMidYMid slice" aria-label={`Illustration: ${issue.category}`}>
-                <rect width="220" height="200" fill="#1a3038"/>
-                <path d="M0 80 L220 60 L220 200 L0 200 Z" fill="#22383f"/>
-                <g dangerouslySetInnerHTML={{ __html: svg }} />
-                <rect x="30" y="65" width="110" height="75" rx="6" fill="none" stroke="var(--mint)" strokeWidth="2.5"/>
-                <rect x="30" y="45" width="90" height="20" rx="5" fill="var(--mint)"/>
-                <text x="38" y="59" fontFamily="Manrope, sans-serif" fontSize="11" fontWeight="800" fill="#06291b">{issue.category} · 0.{confidence}</text>
-              </svg>
+          <section style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ borderRadius: 14, overflow: 'hidden', background: '#152f39', position: 'relative' }}>
+              {imgSrc ? (
+                <>
+                  <img
+                    ref={imgRef}
+                    src={imgSrc}
+                    alt={`${issue.category} defect`}
+                    style={{ display: 'block', width: '100%', height: 'auto', minHeight: 200 }}
+                    onLoad={() => {
+                      const el = imgRef.current;
+                      if (el) setImgSize({ w: el.clientWidth, h: el.clientHeight });
+                    }}
+                  />
+                  {renderBoxes()}
+                </>
+              ) : (
+                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', font: '500 14px Manrope' }}>
+                  No image available
+                </div>
+              )}
+            </div>
+            {/* Credit line */}
+            <div style={{ font: '500 11px Manrope, sans-serif', color: 'var(--text3)', textAlign: 'right' }}>
+              Detections by ScanwAi
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
               {[0, 1, 2, 3].map((i) => (

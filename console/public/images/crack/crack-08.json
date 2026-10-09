@@ -1,0 +1,17 @@
+{
+  "category": "crack",
+  "width": 1280,
+  "height": 720,
+  "detections": [
+    {
+      "label": "line_crack",
+      "confidence": 0.0,
+      "box": [
+        783.3,
+        481.6,
+        226.5,
+        227.7
+      ]
+    }
+  ]
+}

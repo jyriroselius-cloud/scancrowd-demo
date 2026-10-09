@@ -1,0 +1,17 @@
+{
+  "category": "pothole",
+  "width": 1280,
+  "height": 682,
+  "detections": [
+    {
+      "label": "manhole_cover",
+      "confidence": 0.0,
+      "box": [
+        835.5,
+        327.3,
+        180.4,
+        29.4
+      ]
+    }
+  ]
+}
