@@ -103,7 +103,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
         zoom,
       });
       mapRef.current = map;
-      (window as Record<string, unknown>).__scanMap = map;
+      (window as unknown as Record<string, unknown>).__scanMap = map;
 
       map.on('error', (e) => {
         // Only hard-fail on WebGL/context-loss — tile 404s during pan/zoom are normal
