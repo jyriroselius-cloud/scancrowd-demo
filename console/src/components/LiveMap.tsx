@@ -20,51 +20,83 @@ interface Props {
 export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13, onClickIssue, onStreetsReady }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
+  const MLMarkerRef = useRef<typeof Marker | null>(null); // stored after first import
   const markersRef = useRef<Marker[]>([]);
+  const issuesRef = useRef(issues);
+  const onClickRef = useRef(onClickIssue);
   const [failed, setFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const streetsReadyRef = useRef(false);
 
-  // ── Effect 1: create / destroy the MapLibre instance ──────────────────────
+  // Keep refs current on every render — avoids stale closures without triggering effects
+  issuesRef.current = issues;
+  onClickRef.current = onClickIssue;
+
+  // ── Helper: add markers from issuesRef (always current) ──────────────────
+  function syncMarkers() {
+    const map = mapRef.current;
+    const MLMarker = MLMarkerRef.current;
+    if (!map || !MLMarker) return;
+
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    issuesRef.current.forEach((issue) => {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        width: 22px; height: 22px; border-radius: 11px;
+        background: ${statusColors[issue.status] ?? '#9aa7ab'};
+        border: 2.5px solid #0c1d24;
+        cursor: pointer;
+        flex-shrink: 0;
+      `;
+      const marker = new MLMarker({ element: el })
+        .setLngLat([issue.lon, issue.lat])
+        .addTo(map);
+      el.addEventListener('click', () => onClickRef.current?.(issue));
+      markersRef.current.push(marker);
+    });
+  }
+
+  // ── Effect 1: create the MapLibre instance ────────────────────────────────
   useEffect(() => {
     if (!containerRef.current || failed) return;
 
     let map: MLMap;
-    let MLMarker: typeof Marker;
     streetsReadyRef.current = false;
     setMapReady(false);
 
-    // Timeout only covers the initial style load. Once 'load' fires we clear it.
+    // Timeout only covers initial style load — cleared as soon as 'load' fires
     const initTimeout = setTimeout(() => setFailed(true), 12000);
 
-    import('maplibre-gl').then((gl) => {
+    import('maplibre-gl').then(({ Map, Marker: MLMarker }) => {
       if (!containerRef.current) return;
-      map = new gl.Map({
+
+      MLMarkerRef.current = MLMarker; // store class for sync use in Effect 2
+
+      map = new Map({
         container: containerRef.current,
         style: STYLE,
         center: [centerLon, centerLat],
         zoom,
       });
-      MLMarker = gl.Marker;
       mapRef.current = map;
 
       map.on('error', (e) => {
-        // Only hard-fail on WebGL / context-loss errors.
-        // Tile 404s and network errors during panning/zooming are normal and
-        // should NOT tear down the map.
+        // Only hard-fail on WebGL / context-loss — tile errors during pan/zoom are normal
         const msg = String(
           (e as unknown as { error?: { message?: string } }).error?.message ?? ''
         ).toLowerCase();
-        if (msg.includes('webgl') || msg.includes('context lost') || msg.includes('context')) {
+        if (msg.includes('webgl') || msg.includes('context lost')) {
           setFailed(true);
         }
       });
 
       map.on('load', () => {
-        clearTimeout(initTimeout);   // style loaded — no longer need the failsafe
-        setMapReady(true);           // triggers Effect 2 to add markers
+        clearTimeout(initTimeout); // style loaded — disarm the failsafe
+        syncMarkers();             // add pins synchronously (MLMarkerRef is set)
+        setMapReady(true);         // tells Effect 2 it can call syncMarkers on future changes
 
-        // Query streets from the loaded tiles
         map.once('idle', () => {
           if (!streetsReadyRef.current && onStreetsReady) {
             try {
@@ -76,7 +108,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
                 streetsReadyRef.current = true;
                 onStreetsReady(streets);
               }
-            } catch { /* ignore query errors */ }
+            } catch { /* ignore */ }
           }
         });
       });
@@ -93,36 +125,18 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
       mapRef.current = null;
       setMapReady(false);
     };
-  // Re-create the map only when the centre or initial zoom changes.
+  // Re-create only when the map centre or initial zoom changes, not on every issues update
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centerLat, centerLon, zoom, failed]);
 
-  // ── Effect 2: sync issue markers whenever issues or readiness changes ──────
+  // ── Effect 2: re-sync markers when issues change after map is ready ───────
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-
-    // Import is already cached at this point, so this is synchronous in practice
-    import('maplibre-gl').then(({ Marker: MLMarker }) => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
-
-      issues.forEach((issue) => {
-        const el = document.createElement('div');
-        el.style.cssText = `
-          width: 22px; height: 22px; border-radius: 11px;
-          background: ${statusColors[issue.status] ?? '#9aa7ab'};
-          border: 2.5px solid #0c1d24;
-          cursor: pointer;
-        `;
-        const marker = new MLMarker({ element: el })
-          .setLngLat([issue.lon, issue.lat])
-          .addTo(map);
-        if (onClickIssue) el.addEventListener('click', () => onClickIssue(issue));
-        markersRef.current.push(marker);
-      });
-    });
-  }, [issues, mapReady, onClickIssue]);
+    if (!mapReady) return;
+    syncMarkers();
+  // syncMarkers reads issuesRef.current so issues don't need to be in deps;
+  // mapReady is here so markers are added as soon as the map finishes loading
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, issues]);
 
   if (failed) {
     return (
