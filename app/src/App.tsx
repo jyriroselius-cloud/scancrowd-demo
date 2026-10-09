@@ -37,6 +37,8 @@ export function App() {
   const [speed, setSpeed] = useState<DemoSpeed>('fast');
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [pendingCategory, setPendingCategory] = useState<Category | null>(null);
+  const [pendingLat, setPendingLat] = useState<number | null>(null);
+  const [pendingLon, setPendingLon] = useState<number | null>(null);
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [sentIssue, setSentIssue] = useState<Issue | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -216,8 +218,8 @@ export function App() {
       id: `SC-USER-${Date.now()}`,
       title: note ? note.slice(0, 40) : TITLE_MAP[cat],
       category: cat,
-      lat: cityData.lat + (Math.random() - 0.5) * 0.01,
-      lon: cityData.lon + (Math.random() - 0.5) * 0.02,
+      lat: pendingLat ?? cityData.lat + (Math.random() - 0.5) * 0.01,
+      lon: pendingLon ?? cityData.lon + (Math.random() - 0.5) * 0.02,
       address: street ? `${street.name} ${num}` : cityData.name,
       status: 'New',
       reports: 1,
@@ -335,7 +337,7 @@ export function App() {
           photo={pendingPhoto ?? ''}
           category={pendingCategory ?? 'Other'}
           cityData={cityData}
-          onConfirm={() => { setHistory((h) => [...h, 'location_confirm']); setScreen('details'); }}
+          onConfirm={(lat, lon) => { setPendingLat(lat); setPendingLon(lon); setHistory((h) => [...h, 'location_confirm']); setScreen('details'); }}
           onBack={back}
         />
       );

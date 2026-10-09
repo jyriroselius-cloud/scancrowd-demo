@@ -10,7 +10,7 @@
 
 1. On the Android device, open **Settings → Security** (or **Biometrics and security**).
 2. Enable **Install unknown apps** for your file manager or browser.
-3. Open the `.apk` file received from EcoGreen360. Tap **Install**.
+3. Open the `.apk` file received from your ScanCrowd contact. Tap **Install**.
 4. Open **ScanCrowd Demo** from the app drawer.
 
 ## First launch

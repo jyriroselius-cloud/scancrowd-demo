@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Category, CityData } from '@shared/types';
 
 interface Props {
@@ -17,6 +17,21 @@ export default function ReportDetails({ photo, category: initialCategory, cityDa
   const [note, setNote] = useState('');
   const [category, setCategory] = useState<Category>(initialCategory);
   const [sending, setSending] = useState(false);
+  const [safeBottom, setSafeBottom] = useState(48);
+  const [safeTop, setSafeTop] = useState(32);
+
+  useEffect(() => {
+    const read = () => {
+      const root = getComputedStyle(document.documentElement);
+      const b = parseInt(root.getPropertyValue('--safe-bottom').trim(), 10);
+      const t = parseInt(root.getPropertyValue('--safe-top').trim(), 10);
+      if (!isNaN(b) && b > 0) setSafeBottom(b);
+      if (!isNaN(t) && t > 0) setSafeTop(t);
+    };
+    read();
+    const t = setTimeout(read, 800);
+    return () => clearTimeout(t);
+  }, []);
 
   const nearestStreet = cityData.streets[Math.floor(Math.random() * cityData.streets.length)];
   const address = nearestStreet ? `${nearestStreet.name} ${Math.floor(Math.random() * 50) + 1}, ${cityData.name}` : cityData.name;
@@ -31,12 +46,12 @@ export default function ReportDetails({ photo, category: initialCategory, cityDa
   return (
     <div style={{ position: 'relative', width: '100%', height: '100dvh', overflow: 'hidden', background: '#0c1d24', fontFamily: 'Manrope, system-ui, sans-serif', color: '#ffffff', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 16px 16px', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: safeTop + 10, paddingBottom: 16, paddingLeft: 16, paddingRight: 16, flexShrink: 0 }}>
         <button
           onClick={onBack}
-          style={{ width: 44, height: 44, borderRadius: 22, background: '#132a33', border: '1px solid #2a4650', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          style={{ width: 52, height: 52, borderRadius: 26, background: '#132a33', border: '1px solid #2a4650', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 5l-7 7 7 7" />
           </svg>
         </button>
@@ -120,7 +135,7 @@ export default function ReportDetails({ photo, category: initialCategory, cityDa
       </div>
 
       {/* Send button */}
-      <div style={{ padding: '12px 16px 24px', flexShrink: 0 }}>
+      <div style={{ paddingTop: 12, paddingLeft: 16, paddingRight: 16, paddingBottom: safeBottom + 20, flexShrink: 0 }}>
         <button
           onClick={handleSend}
           disabled={sending}

@@ -314,10 +314,10 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
 
         {/* right column */}
         <div style={{ flex: '2 1 340px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* ECO360 priority */}
+          {/* Repair priority */}
           <section style={{ background: 'rgba(61,220,151,0.08)', border: '1px solid rgba(61,220,151,0.45)', borderRadius: 20, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ font: '700 11px Manrope, sans-serif', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--mint)' }}>ECO360 priority</span>
+              <span style={{ font: '700 11px Manrope, sans-serif', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--mint)' }}>Repair priority</span>
               <span style={{ font: '800 22px Manrope, sans-serif' }}>{issue.priority}<span style={{ fontSize: 13, color: 'var(--text2)' }}> / 100</span></span>
             </div>
             <div style={{ font: '800 20px Manrope, sans-serif' }}>{issue.priority >= 75 ? 'Repair now' : issue.priority >= 50 ? 'Schedule soon' : 'Low priority'}</div>

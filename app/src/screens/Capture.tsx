@@ -9,7 +9,23 @@ interface Props {
 
 const CATEGORIES: Category[] = ['Traffic sign', 'Pothole', 'Road marking', 'Street light', 'Manhole', 'Other'];
 
+function useSafeBottom(fallback = 48): number {
+  const [val, setVal] = useState(fallback);
+  useEffect(() => {
+    const read = () => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom').trim();
+      const n = parseInt(raw, 10);
+      if (!isNaN(n) && n > 0) setVal(n);
+    };
+    read();
+    const t = setTimeout(read, 800);
+    return () => clearTimeout(t);
+  }, []);
+  return val;
+}
+
 export default function Capture({ cityData, onPhoto, onClose }: Props) {
+  const safeBottom = useSafeBottom();
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>('Pothole');
   const [aiCategory, setAiCategory] = useState<Category | null>(null);
@@ -265,7 +281,7 @@ export default function Capture({ cityData, onPhoto, onClose }: Props) {
         <div style={{
           flexShrink: 0,
           padding: '8px 28px',
-          paddingBottom: 'max(calc(var(--safe-bottom, 0px) + 10px), 34px)',
+          paddingBottom: safeBottom + 10,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

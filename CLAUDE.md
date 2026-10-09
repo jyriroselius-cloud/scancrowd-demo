@@ -5,9 +5,9 @@ Hakemisto: `/Users/jyriroselius/Claude/Projects/scancrowd-demo/`
 
 ## Versio
 
-- Nykyinen: **0.2.21** (versionCode 32) — 2026-10-08
-- APK: `releases/scancrowd-demo-0.2.21.apk` (6.2 MB, signed)
-- Seuraava: 0.2.22 (versionCode 33)
+- Nykyinen: **0.2.22** (versionCode 33) — 2026-10-08
+- APK: `releases/scancrowd-demo-0.2.22.apk` (6.2 MB, signed)
+- Seuraava: 0.2.23 (versionCode 34)
 
 ## Console (web)
 

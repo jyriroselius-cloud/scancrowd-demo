@@ -8,3 +8,4 @@ app/android/
 *.keystore
 .DS_Store
 *.local
+.vercel
