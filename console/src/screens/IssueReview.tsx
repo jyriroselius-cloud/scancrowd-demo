@@ -51,14 +51,10 @@ function hashId(id: string): number {
 }
 
 function getImagePath(issue: Issue): string | null {
-  const folder = FOLDER_MAP[issue.category] ?? 'pothole';
-  let count = IMAGE_COUNTS[folder] ?? 0;
-  if (count === 0) {
-    // Fallback: pothole then crack
-    if (IMAGE_COUNTS.pothole > 0) { return getImagePathFor('pothole', issue.id, IMAGE_COUNTS.pothole); }
-    if (IMAGE_COUNTS.crack   > 0) { return getImagePathFor('crack',   issue.id, IMAGE_COUNTS.crack); }
-    return null;
-  }
+  const folder = FOLDER_MAP[issue.category] ?? null;
+  if (!folder) return null;
+  const count = IMAGE_COUNTS[folder] ?? 0;
+  if (count === 0) return null; // no images yet for this category
   return getImagePathFor(folder, issue.id, count);
 }
 
@@ -134,6 +130,7 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
     const scaleY = imgSize.h / meta.height;
     return (
       <svg
+        data-testid="detection-boxes"
         style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
         viewBox={`0 0 ${imgSize.w} ${imgSize.h}`}
         xmlns="http://www.w3.org/2000/svg"
@@ -201,6 +198,7 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
                     ref={imgRef}
                     src={imgSrc}
                     alt={`${issue.category} defect`}
+                    data-testid="issue-photo"
                     style={{ display: 'block', width: '100%', height: 'auto', minHeight: 200 }}
                     onLoad={() => {
                       const el = imgRef.current;
@@ -210,8 +208,17 @@ export function IssueReview({ issue, cityData, onBack, onUpdate }: Props) {
                   {renderBoxes()}
                 </>
               ) : (
-                <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', font: '500 14px Manrope' }}>
-                  No image available
+                <div
+                  data-testid="issue-photo-placeholder"
+                  style={{ height: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text3)' }}
+                >
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="10" width="40" height="28" rx="4" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    <circle cx="24" cy="24" r="7" stroke="currentColor" strokeWidth="2" fill="none"/>
+                    <path d="M18 10 L20 6 H28 L30 10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round"/>
+                    <line x1="36" y1="16" x2="39" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <div style={{ font: '600 13px Manrope, sans-serif' }}>No photo for {issue.category}</div>
                 </div>
               )}
             </div>
