@@ -107,7 +107,7 @@ export function ConsoleSidebar({ cityName, screen, setScreen, queueCount, onRese
             Powered by
           </div>
           <div style={{ font: '600 13px Manrope, sans-serif', color: 'var(--text3)' }}>
-            ScanwAi detection · ECO360 priority
+            ScanwAi detection
           </div>
         </div>
         <button
