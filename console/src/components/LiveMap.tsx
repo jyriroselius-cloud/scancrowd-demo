@@ -20,19 +20,20 @@ interface Props {
 export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13, onClickIssue, onStreetsReady }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
-  const MLMarkerRef = useRef<typeof Marker | null>(null); // stored after first import
+  const MLMarkerRef = useRef<typeof Marker | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const issuesRef = useRef(issues);
   const onClickRef = useRef(onClickIssue);
+  const firstFitRef = useRef(true); // animate only after initial fit
   const [failed, setFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const streetsReadyRef = useRef(false);
 
-  // Keep refs current on every render — avoids stale closures without triggering effects
+  // Always-current refs — no stale closures without triggering effects
   issuesRef.current = issues;
   onClickRef.current = onClickIssue;
 
-  // ── Helper: add markers from issuesRef (always current) ──────────────────
+  // ── syncMarkers: place all filtered issues and fit the viewport ───────────
   function syncMarkers() {
     const map = mapRef.current;
     const MLMarker = MLMarkerRef.current;
@@ -41,8 +42,20 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    issuesRef.current.forEach((issue) => {
+    const iss = issuesRef.current;
+    if (iss.length === 0) return;
+
+    let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+
+    iss.forEach((issue) => {
+      if (issue.lon < minLon) minLon = issue.lon;
+      if (issue.lon > maxLon) maxLon = issue.lon;
+      if (issue.lat < minLat) minLat = issue.lat;
+      if (issue.lat > maxLat) maxLat = issue.lat;
+
       const el = document.createElement('div');
+      el.setAttribute('data-testid', 'map-pin');
+      el.setAttribute('title', issue.title);
       el.style.cssText = `
         width: 22px; height: 22px; border-radius: 11px;
         background: ${statusColors[issue.status] ?? '#9aa7ab'};
@@ -56,23 +69,32 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
       el.addEventListener('click', () => onClickRef.current?.(issue));
       markersRef.current.push(marker);
     });
+
+    // Fit the viewport to the bounding box of all markers.
+    // First call is instant (tiles haven't loaded yet); subsequent calls animate.
+    const isFirst = firstFitRef.current;
+    firstFitRef.current = false;
+    map.fitBounds(
+      [[minLon, minLat], [maxLon, maxLat]],
+      { padding: 64, maxZoom: 15, duration: isFirst ? 0 : 500 },
+    );
   }
 
-  // ── Effect 1: create the MapLibre instance ────────────────────────────────
+  // ── Effect 1: create / destroy the MapLibre instance ─────────────────────
   useEffect(() => {
     if (!containerRef.current || failed) return;
 
     let map: MLMap;
     streetsReadyRef.current = false;
+    firstFitRef.current = true;
     setMapReady(false);
 
-    // Timeout only covers initial style load — cleared as soon as 'load' fires
     const initTimeout = setTimeout(() => setFailed(true), 12000);
 
     import('maplibre-gl').then(({ Map, Marker: MLMarker }) => {
       if (!containerRef.current) return;
 
-      MLMarkerRef.current = MLMarker; // store class for sync use in Effect 2
+      MLMarkerRef.current = MLMarker;
 
       map = new Map({
         container: containerRef.current,
@@ -83,7 +105,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
       mapRef.current = map;
 
       map.on('error', (e) => {
-        // Only hard-fail on WebGL / context-loss — tile errors during pan/zoom are normal
+        // Only hard-fail on WebGL/context-loss — tile 404s during pan/zoom are normal
         const msg = String(
           (e as unknown as { error?: { message?: string } }).error?.message ?? ''
         ).toLowerCase();
@@ -93,9 +115,9 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
       });
 
       map.on('load', () => {
-        clearTimeout(initTimeout); // style loaded — disarm the failsafe
-        syncMarkers();             // add pins synchronously (MLMarkerRef is set)
-        setMapReady(true);         // tells Effect 2 it can call syncMarkers on future changes
+        clearTimeout(initTimeout);
+        syncMarkers(); // add all pins and fit viewport synchronously
+        setMapReady(true);
 
         map.once('idle', () => {
           if (!streetsReadyRef.current && onStreetsReady) {
@@ -125,16 +147,13 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
       mapRef.current = null;
       setMapReady(false);
     };
-  // Re-create only when the map centre or initial zoom changes, not on every issues update
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centerLat, centerLon, zoom, failed]);
 
-  // ── Effect 2: re-sync markers when issues change after map is ready ───────
+  // ── Effect 2: re-sync + re-fit when filtered issues change ───────────────
   useEffect(() => {
     if (!mapReady) return;
     syncMarkers();
-  // syncMarkers reads issuesRef.current so issues don't need to be in deps;
-  // mapReady is here so markers are added as soon as the map finishes loading
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, issues]);
 
