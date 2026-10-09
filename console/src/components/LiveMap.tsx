@@ -103,6 +103,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
         zoom,
       });
       mapRef.current = map;
+      (window as Record<string, unknown>).__scanMap = map;
 
       map.on('error', (e) => {
         // Only hard-fail on WebGL/context-loss — tile 404s during pan/zoom are normal
@@ -116,6 +117,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
 
       map.on('load', () => {
         clearTimeout(initTimeout);
+        map.resize(); // ensure canvas matches container dimensions (important for headless)
         syncMarkers(); // add all pins and fit viewport synchronously
         setMapReady(true);
 
@@ -172,7 +174,7 @@ export function LiveMap({ issues, centerLat, centerLon, height = 400, zoom = 13,
 
   return (
     <div style={{ position: 'relative', height, borderRadius: 14, overflow: 'hidden' }}>
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
     </div>
   );
 }
