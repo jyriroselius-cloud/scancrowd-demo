@@ -159,10 +159,10 @@ test('Map page: clicking a pin opens the issue', async ({ page }) => {
 });
 
 // ── Test 6: MapLibre rendered features match the filtered issue count ─────────
-// Verifies the source is not "stuck": queryRenderedFeatures must return >0 results
-// and the sum of cluster point_count + unclustered points must equal filtered count.
-// Runs only when BASE_URL is set (production / non-headless); headless Chrome does
-// not update queryRenderedFeatures' feature index without a real paint surface.
+// Verifies the source tiles are not errored (glyph/font failures cause "errored"
+// tile state and 0 rendered features even though the source has data).
+// queryRenderedFeatures must return >0 and the sum must equal the filtered count.
+// Runs only when BASE_URL is set (production / non-headless).
 
 test('MapLibre: rendered features match filtered issue count', async ({ page }) => {
   test.skip(!process.env.BASE_URL, 'Set BASE_URL to run against a real browser (production)');
@@ -178,22 +178,38 @@ test('MapLibre: rendered features match filtered issue count', async ({ page }) 
     { timeout: 15000 },
   );
 
-  const { renderedTotal, renderedFeatureCount } = await page.evaluate(() => {
-    const m = (window as unknown as Record<string, unknown>).__scanMap as {
-      queryRenderedFeatures: (opts: { layers: string[] }) => Array<{ properties: Record<string, unknown> }>;
-    };
-    const features = m.queryRenderedFeatures({ layers: ['clusters', 'unclustered-point'] });
-    const renderedFeatureCount = features.length;
-    const renderedTotal = features.reduce((sum, f) => {
-      const pc = f.properties?.point_count;
-      return sum + (typeof pc === 'number' ? pc : 1);
-    }, 0);
-    return { renderedTotal, renderedFeatureCount };
-  });
+  const { renderedTotal, renderedFeatureCount, erroredTiles, totalTiles, srcId } =
+    await page.evaluate(() => {
+      type W = Record<string, unknown>;
+      const m = (window as unknown as W).__scanMap as {
+        queryRenderedFeatures: (opts: { layers: string[] }) => Array<{ properties: Record<string, unknown> }>;
+        style: { sourceCaches: Record<string, { _tiles: Record<string, { state: string }> }> };
+      };
+      const srcId = String((window as unknown as W).__scanMapSrcId ?? '');
+
+      // Tile state check — glyph 404s put every tile in "errored" state
+      const sc = m.style.sourceCaches[srcId];
+      const tiles = sc ? Object.values(sc._tiles) : [];
+      const totalTiles = tiles.length;
+      const erroredTiles = tiles.filter((t) => t.state === 'errored').length;
+
+      const features = m.queryRenderedFeatures({ layers: ['clusters', 'unclustered-point'] });
+      const renderedFeatureCount = features.length;
+      const renderedTotal = features.reduce((sum, f) => {
+        const pc = f.properties?.point_count;
+        return sum + (typeof pc === 'number' ? pc : 1);
+      }, 0);
+      return { renderedTotal, renderedFeatureCount, erroredTiles, totalTiles, srcId };
+    });
+
+  expect(
+    erroredTiles,
+    `${erroredTiles}/${totalTiles} tiles of source "${srcId}" are in errored state — likely a missing glyph font`,
+  ).toBe(0);
 
   expect(
     renderedFeatureCount,
-    `queryRenderedFeatures returned 0 — source is stuck (source not rendering)`,
+    `queryRenderedFeatures returned 0 for source "${srcId}" — pins not rendering`,
   ).toBeGreaterThan(0);
 
   expect(

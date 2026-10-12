@@ -8,9 +8,7 @@ const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
 // Fixed layer ids — always the same, reused across rebuilds.
 const LAYER_IDS = ['cluster-count', 'unclustered-point', 'clusters'] as const;
 
-// Module-level counter: each rebuildSource call gets a new source id
-// ('issues-1', 'issues-2', …) so the GeoJSON worker never reuses
-// a stale id whose loadData call was left pending.
+// Versioned source id so each rebuild gets a clean slot in the style.
 let srcVer = 0;
 
 interface Props {
@@ -72,13 +70,11 @@ function updateProxy(map: MLMap, iss: Issue[]) {
 // versioned id and re-add the layers pointing at it.
 // Returns the new source id so callers can store it.
 function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): string {
-  // Remove layers before the source they depend on
   for (const id of LAYER_IDS) {
     if (map.getLayer(id)) map.removeLayer(id);
   }
   if (oldSrcId && map.getSource(oldSrcId)) map.removeSource(oldSrcId);
 
-  // New id — avoids the GeoJSON worker's stale state for the previous id
   const sid = `issues-${++srcVer}`;
 
   // Always pass a valid FeatureCollection
@@ -92,6 +88,10 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     clusterMaxZoom: 14,
     clusterRadius: 36,
   });
+
+  // Expose current source id so tests can inspect tile states
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (window as any).__scanMapSrcId = sid;
 
   map.addLayer({
     id: 'clusters',
@@ -111,7 +111,15 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     type: 'symbol',
     source: sid,
     filter: ['has', 'point_count'],
-    layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 12 },
+    layout: {
+      'text-field': '{point_count_abbreviated}',
+      'text-size': 12,
+      // Must match the glyph fontstack the OpenFreeMap liberty style serves.
+      // Omitting text-font causes MapLibre to request "Open Sans Regular"
+      // which the OpenFreeMap glyph server does not have → glyph 404 →
+      // all tiles of the source enter "errored" state → nothing renders.
+      'text-font': ['Noto Sans Regular'],
+    },
     paint: { 'text-color': '#0c1d24' },
   });
   map.addLayer({

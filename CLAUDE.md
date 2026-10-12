@@ -9,7 +9,7 @@ Hakemisto: `/Users/jyriroselius/Claude/Projects/scancrowd-demo/`
 - APK: `releases/scancrowd-demo-0.2.22.apk` (6.2 MB, signed) — konsoli päivitetty, APK ei rakennettu
 - Seuraava: 0.2.26 (versionCode 37)
 - commit 39ca084: MapLibre GeoJSON clustering + fitBounds + 5 Playwright-testiä läpi
-- 2026-10-12: MapLibre source-stuck bugi korjattu — versioitu source id (issues-1, issues-2, …) välttää GeoJSON-workerin stale-tilan
+- 2026-10-12: MapLibre pinnit korjattu — `text-font: ["Noto Sans Regular"]` cluster-count layeriin (puuttuva fontti aiheutti glyfi-404 → kaikki tilet "errored" → 0 renderöityä)
 
 ## Console (web)
 
@@ -117,7 +117,8 @@ BASE_URL=https://scancrowd-demo.vercel.app DEMO_PASSWORD=<salasana> \
 
 ### MapLibre-arkkitehtuuri (console LiveMap.tsx)
 - GeoJSON lähde + MapLibre klusterointi (clusterRadius 36, clusterMaxZoom 14)
-- **Versioitu source id** (`issues-1`, `issues-2`, …): moduulitason `let srcVer = 0`, kasvaa jokaisella `rebuildSource`-kutsulla — välttää GeoJSON-workerin stale-tilan (saman id:n poisto+lisäys jättää workerin jumiin)
+- **Versioitu source id** (`issues-1`, `issues-2`, …): moduulitason `let srcVer = 0`, kasvaa jokaisella `rebuildSource`-kutsulla. `window.__scanMapSrcId` = nykyinen id (testeille).
+- **`text-font: ["Noto Sans Regular"]`** cluster-count symbol-layerissa — kriittinen! Puuttuva fontti → OpenFreeMap glyfi-palvelin palauttaa 404 → kaikki tilet "errored" → 0 renderöityä pinniä. Noto Sans on se fontti mitä liberty-style käyttää.
 - `rebuildSource(map, iss, oldSrcId)`: poistaa vanhat layerit + vanhan sourcen, lisää uuden sourcen uudella id:llä + layerit. Kutsutaan `map.on('load')`, `map.on('style.load')` ja Effect 2 (dep: `issues`) -tilanteessa
 - `srcIdRef` pitää kirjaa nykyisestä source id:stä komponentin sisällä
 - `fitBounds` jokaisella suodatinmuutoksella — kaikki pinnit näkyvissä
