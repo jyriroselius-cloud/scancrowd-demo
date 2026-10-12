@@ -3,16 +3,29 @@
  *
  * Rule: every filtered issue must produce exactly one pin in the DOM.
  * The test fails if the visible marker count differs from the filtered issue count.
+ *
+ * Run against production:
+ *   BASE_URL=https://scancrowd-demo.vercel.app \
+ *   DEMO_PASSWORD=<password> \
+ *   npx playwright test tests/console-map-pins.spec.ts
  */
 
 import { test, expect, Page } from 'playwright/test';
 
-const BASE = 'http://localhost:5174';
+const BASE = process.env.BASE_URL || 'http://localhost:5174';
+const PROD_PASSWORD = process.env.DEMO_PASSWORD || '';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+async function setupAuth(page: Page) {
+  if (BASE !== 'http://localhost:5174' && PROD_PASSWORD) {
+    await page.authenticate({ username: 'demo', password: PROD_PASSWORD });
+  }
+}
+
 /** Navigate to the Map page and wait until markers appear (or fallback shows). */
 async function gotoMapPage(page: Page) {
+  await setupAuth(page);
   await page.goto(BASE);
   await page.waitForSelector('nav', { timeout: 10000 });
   await page.locator('nav button').filter({ hasText: /^Map$/ }).first().click();
@@ -61,6 +74,10 @@ test('FallbackMap: shows ≥50 pins for default filter', async ({ browser }) => 
   const context = await browser.newContext();
   const page = await context.newPage();
 
+  if (BASE !== 'http://localhost:5174' && PROD_PASSWORD) {
+    await page.authenticate({ username: 'demo', password: PROD_PASSWORD });
+  }
+
   // Force WebGL failure so FallbackMap renders
   await page.addInitScript(() => {
     const proto = HTMLCanvasElement.prototype as unknown as Record<string, unknown>;
@@ -108,6 +125,7 @@ test('Map page: toggling a filter chip changes pin count', async ({ page }) => {
 // ── Test 4: Work queue map panel shows pins ───────────────────────────────────
 
 test('Work queue map panel: shows ≥10 pins', async ({ page }) => {
+  await setupAuth(page);
   await page.goto(BASE);
   // Work queue is the default screen — wait for table
   await page.waitForSelector('table', { timeout: 10000 });
@@ -138,4 +156,48 @@ test('Map page: clicking a pin opens the issue', async ({ page }) => {
 
   // Accept any outcome — click may open issue or stay on map
   expect(true).toBe(true);
+});
+
+// ── Test 6: MapLibre rendered features match the filtered issue count ─────────
+// Verifies the source is not "stuck": queryRenderedFeatures must return >0 results
+// and the sum of cluster point_count + unclustered points must equal filtered count.
+// Runs only when BASE_URL is set (production / non-headless); headless Chrome does
+// not update queryRenderedFeatures' feature index without a real paint surface.
+
+test('MapLibre: rendered features match filtered issue count', async ({ page }) => {
+  test.skip(!process.env.BASE_URL, 'Set BASE_URL to run against a real browser (production)');
+
+  await gotoMapPage(page);
+
+  const filteredCount = await pinCount(page);
+  expect(filteredCount, 'Expected >0 proxy pins before MapLibre check').toBeGreaterThan(0);
+
+  // Wait for at least one map idle event (fires after all tiles loaded + rendered frame)
+  await page.waitForFunction(
+    () => (window as unknown as Record<string, unknown>).__scanMapIdle as number > 0,
+    { timeout: 15000 },
+  );
+
+  const { renderedTotal, renderedFeatureCount } = await page.evaluate(() => {
+    const m = (window as unknown as Record<string, unknown>).__scanMap as {
+      queryRenderedFeatures: (opts: { layers: string[] }) => Array<{ properties: Record<string, unknown> }>;
+    };
+    const features = m.queryRenderedFeatures({ layers: ['clusters', 'unclustered-point'] });
+    const renderedFeatureCount = features.length;
+    const renderedTotal = features.reduce((sum, f) => {
+      const pc = f.properties?.point_count;
+      return sum + (typeof pc === 'number' ? pc : 1);
+    }, 0);
+    return { renderedTotal, renderedFeatureCount };
+  });
+
+  expect(
+    renderedFeatureCount,
+    `queryRenderedFeatures returned 0 — source is stuck (source not rendering)`,
+  ).toBeGreaterThan(0);
+
+  expect(
+    renderedTotal,
+    `Rendered total ${renderedTotal} does not match filtered issue count ${filteredCount}`,
+  ).toBe(filteredCount);
 });

@@ -5,9 +5,11 @@ Hakemisto: `/Users/jyriroselius/Claude/Projects/scancrowd-demo/`
 
 ## Versio
 
-- Nykyinen: **0.2.23** (versionCode 34) — 2026-10-09
+- Nykyinen: **0.2.25** (versionCode 36) — 2026-10-12
 - APK: `releases/scancrowd-demo-0.2.22.apk` (6.2 MB, signed) — konsoli päivitetty, APK ei rakennettu
-- Seuraava: 0.2.24 (versionCode 35)
+- Seuraava: 0.2.26 (versionCode 37)
+- commit 39ca084: MapLibre GeoJSON clustering + fitBounds + 5 Playwright-testiä läpi
+- 2026-10-12: MapLibre source-stuck bugi korjattu (addSourceAndLayers vain map.on('load'):ssa, setData vain filteröinnissä)
 
 ## Console (web)
 
@@ -101,3 +103,23 @@ Device: Samsung SM-A266B, Android 16, serial `RZCY90GPL6H`
 cd app && npx playwright test tests/console-geolocation.spec.ts
 ```
 9 testiä (Vesilahti/Hagfors/Brno + siemen-yksikkötesti)
+
+```bash
+cd /Users/jyriroselius/Claude/Projects/scancrowd-demo && npx playwright test tests/console-map-pins.spec.ts
+```
+6 testiä: karttapinnien laskenta, FallbackMap, suodatinchip, työlista, klikkaus, rendered-features (skipissä lokaalisti). Kaikki 5 lokaalisti ✅ (2026-10-12)
+
+Tuotantotesti (Test 6):
+```bash
+BASE_URL=https://scancrowd-demo.vercel.app DEMO_PASSWORD=<salasana> \
+  npx playwright test tests/console-map-pins.spec.ts -k "rendered features"
+```
+
+### MapLibre-arkkitehtuuri (console LiveMap.tsx)
+- GeoJSON lähde + MapLibre klusterointi (clusterRadius 36, clusterMaxZoom 14)
+- `addSourceAndLayers(map)` kutsutaan VAIN `map.on('load')` ja `map.on('style.load')` sisältä
+- `setData()` kutsutaan vain kun filtteri muuttuu (Effect 2, dep: `issues`) — EI `map.on('load')`:ssa
+- `fitBounds` jokaisella suodatinmuutoksella — kaikki pinnit näkyvissä
+- `window.__scanMapIdle` kasvaa jokaisella `idle`-eventillä — testeille pollattavaksi
+- Piilottu `[data-pin-proxy]`-kontti proxy-spaneilla `data-testid="map-pin"` Playwright-testausta varten
+- Kriittinen: `import 'maplibre-gl/dist/maplibre-gl.css'` main.tsx:ssä — ilman tätä pinnit renderöityvät canvasin ulkopuolelle
