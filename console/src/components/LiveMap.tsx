@@ -5,8 +5,13 @@ import { extractStreets } from '@shared/extractStreets';
 import { FallbackMap } from './FallbackMap';
 
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-const SOURCE = 'issues';
-const LAYERS = ['cluster-count', 'unclustered-point', 'clusters'] as const;
+// Fixed layer ids — always the same, reused across rebuilds.
+const LAYER_IDS = ['cluster-count', 'unclustered-point', 'clusters'] as const;
+
+// Module-level counter: each rebuildSource call gets a new source id
+// ('issues-1', 'issues-2', …) so the GeoJSON worker never reuses
+// a stale id whose loadData call was left pending.
+let srcVer = 0;
 
 interface Props {
   issues: Issue[];
@@ -27,70 +32,6 @@ function toGeoJSON(issues: Issue[]) {
       geometry: { type: 'Point' as const, coordinates: [i.lon, i.lat] },
     })),
   };
-}
-
-// Remove layers + source then add them fresh with the given data.
-// Robust against the GeoJSON worker holding stale/empty tile state
-// that makes querySourceFeatures / queryRenderedFeatures return 0.
-function rebuildSource(map: MLMap, iss: Issue[]) {
-  // Remove dependent layers first, then the source
-  for (const id of LAYERS) {
-    if (map.getLayer(id)) map.removeLayer(id);
-  }
-  if (map.getSource(SOURCE)) map.removeSource(SOURCE);
-
-  map.addSource(SOURCE, {
-    type: 'geojson',
-    data: toGeoJSON(iss),
-    cluster: true,
-    clusterMaxZoom: 14,
-    clusterRadius: 36,
-  });
-
-  map.addLayer({
-    id: 'clusters',
-    type: 'circle',
-    source: SOURCE,
-    filter: ['has', 'point_count'],
-    paint: {
-      'circle-color': '#5aa9ff',
-      'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 30],
-      'circle-stroke-width': 2.5,
-      'circle-stroke-color': '#0c1d24',
-      'circle-opacity': 0.92,
-    },
-  });
-
-  map.addLayer({
-    id: 'cluster-count',
-    type: 'symbol',
-    source: SOURCE,
-    filter: ['has', 'point_count'],
-    layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 12 },
-    paint: { 'text-color': '#0c1d24' },
-  });
-
-  map.addLayer({
-    id: 'unclustered-point',
-    type: 'circle',
-    source: SOURCE,
-    filter: ['!', ['has', 'point_count']],
-    paint: {
-      'circle-color': [
-        'match', ['get', 'status'],
-        'New',       '#9aa7ab',
-        'Accepted',  '#5aa9ff',
-        'Planned',   '#ffb547',
-        'In repair', '#ffb547',
-        'Fixed',     '#3ddc97',
-        'Declined',  '#ff6b6b',
-        '#9aa7ab',
-      ],
-      'circle-radius': 10,
-      'circle-stroke-width': 2.5,
-      'circle-stroke-color': '#0c1d24',
-    },
-  });
 }
 
 function fitToIssues(map: MLMap, iss: Issue[], instant: boolean) {
@@ -127,14 +68,85 @@ function updateProxy(map: MLMap, iss: Issue[]) {
   );
 }
 
+// Remove old layers + source (if any), then add a fresh source under a new
+// versioned id and re-add the layers pointing at it.
+// Returns the new source id so callers can store it.
+function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): string {
+  // Remove layers before the source they depend on
+  for (const id of LAYER_IDS) {
+    if (map.getLayer(id)) map.removeLayer(id);
+  }
+  if (oldSrcId && map.getSource(oldSrcId)) map.removeSource(oldSrcId);
+
+  // New id — avoids the GeoJSON worker's stale state for the previous id
+  const sid = `issues-${++srcVer}`;
+
+  // Always pass a valid FeatureCollection
+  const geojson = toGeoJSON(iss);
+  console.log(`[LiveMap] addSource ${sid} with ${geojson.features.length} features`);
+
+  map.addSource(sid, {
+    type: 'geojson',
+    data: geojson,
+    cluster: true,
+    clusterMaxZoom: 14,
+    clusterRadius: 36,
+  });
+
+  map.addLayer({
+    id: 'clusters',
+    type: 'circle',
+    source: sid,
+    filter: ['has', 'point_count'],
+    paint: {
+      'circle-color': '#5aa9ff',
+      'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 30],
+      'circle-stroke-width': 2.5,
+      'circle-stroke-color': '#0c1d24',
+      'circle-opacity': 0.92,
+    },
+  });
+  map.addLayer({
+    id: 'cluster-count',
+    type: 'symbol',
+    source: sid,
+    filter: ['has', 'point_count'],
+    layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 12 },
+    paint: { 'text-color': '#0c1d24' },
+  });
+  map.addLayer({
+    id: 'unclustered-point',
+    type: 'circle',
+    source: sid,
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-color': [
+        'match', ['get', 'status'],
+        'New',       '#9aa7ab',
+        'Accepted',  '#5aa9ff',
+        'Planned',   '#ffb547',
+        'In repair', '#ffb547',
+        'Fixed',     '#3ddc97',
+        'Declined',  '#ff6b6b',
+        '#9aa7ab',
+      ],
+      'circle-radius': 10,
+      'circle-stroke-width': 2.5,
+      'circle-stroke-color': '#0c1d24',
+    },
+  });
+
+  return sid;
+}
+
 export function LiveMap({
   issues, centerLat, centerLon, height = 400, zoom = 13, onClickIssue, onStreetsReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
+  const srcIdRef = useRef<string | null>(null);   // current versioned source id
   const issuesRef = useRef(issues);
   const onClickRef = useRef(onClickIssue);
-  const firstFitRef = useRef(true);
   const [failed, setFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const streetsReadyRef = useRef(false);
@@ -142,22 +154,21 @@ export function LiveMap({
   issuesRef.current = issues;
   onClickRef.current = onClickIssue;
 
-  // ── Effect 1: single map instance, recreated on center/zoom change ────────
+  // ── Effect 1: create / destroy the MapLibre instance ─────────────────────
   useEffect(() => {
     if (!containerRef.current || failed) return;
 
-    // Destroy any previous instance so only one map exists at a time.
-    // Covers React StrictMode double-mount and center/zoom dep changes.
+    // Ensure only one map instance exists
     if (mapRef.current) {
       mapRef.current.remove();
       mapRef.current = null;
     }
+    srcIdRef.current = null;
 
     let map: MLMap;
     let cancelled = false;
 
     streetsReadyRef.current = false;
-    firstFitRef.current = true;
     setMapReady(false);
 
     const initTimeout = setTimeout(() => setFailed(true), 12000);
@@ -172,16 +183,14 @@ export function LiveMap({
         zoom,
       });
 
-      // Expose the live instance globally so tests can call queryRenderedFeatures
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__scanMap = map;
       mapRef.current = map;
 
       map.on('error', (e) => {
-        const msg = String(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (e as any).error?.message ?? ''
-        ).toLowerCase();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const msg = String((e as any).error?.message ?? '').toLowerCase();
+        console.error('[LiveMap] map error:', msg, e);
         if (msg.includes('webgl') || msg.includes('context lost')) setFailed(true);
       });
 
@@ -189,8 +198,8 @@ export function LiveMap({
         clearTimeout(initTimeout);
         map.resize();
 
-        // Wire click/hover handlers once. They survive layer removals because
-        // MapLibre stores them on the map object, keyed by layer id.
+        // Wire interaction handlers once. They survive layer removal because
+        // MapLibre stores them on the map object keyed by layer id.
         map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
         map.on('click', 'clusters', (e) => {
@@ -198,7 +207,7 @@ export function LiveMap({
           const feats = map.queryRenderedFeatures(e.point, { layers: ['clusters'] }) as any[];
           if (!feats.length) return;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (map.getSource(SOURCE) as any).getClusterExpansionZoom(
+          (map.getSource(srcIdRef.current!) as any)?.getClusterExpansionZoom(
             feats[0].properties.cluster_id,
             (err: unknown, z: number) => {
               if (!err) map.easeTo({ center: feats[0].geometry.coordinates, zoom: z });
@@ -214,24 +223,23 @@ export function LiveMap({
           if (issue) onClickRef.current?.(issue);
         });
 
-        // Re-run full rebuild on any style reload (setStyle clears user sources)
+        // If style ever reloads (setStyle / theme swap), rebuild with next version
         map.on('style.load', () => {
           const iss = issuesRef.current;
-          rebuildSource(map, iss);
+          srcIdRef.current = rebuildSource(map, iss, srcIdRef.current);
           updateProxy(map, iss);
           fitToIssues(map, iss, false);
         });
 
-        // Count idle events so tests can poll for a rendered frame
+        // Idle counter for test polling
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         map.on('idle', () => { (window as any).__scanMapIdle = ((window as any).__scanMapIdle ?? 0) + 1; });
 
-        // Initial data
+        // Initial source + layers under a fresh versioned id
         const iss = issuesRef.current;
-        rebuildSource(map, iss);
+        srcIdRef.current = rebuildSource(map, iss, null);
         updateProxy(map, iss);
         fitToIssues(map, iss, true);
-        firstFitRef.current = false;
         setMapReady(true);
 
         map.once('idle', () => {
@@ -249,7 +257,8 @@ export function LiveMap({
           }
         });
       });
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('[LiveMap] import error:', err);
       clearTimeout(initTimeout);
       setFailed(true);
     });
@@ -259,18 +268,19 @@ export function LiveMap({
       clearTimeout(initTimeout);
       map?.remove();
       mapRef.current = null;
+      srcIdRef.current = null;
       setMapReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centerLat, centerLon, zoom, failed]);
 
-  // ── Effect 2: rebuild source when filtered issues change ──────────────────
+  // ── Effect 2: rebuild source+layers when filtered issues change ───────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
     const iss = issuesRef.current;
-    rebuildSource(map, iss);
+    srcIdRef.current = rebuildSource(map, iss, srcIdRef.current);
     updateProxy(map, iss);
     fitToIssues(map, iss, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps

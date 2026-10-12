@@ -9,7 +9,7 @@ Hakemisto: `/Users/jyriroselius/Claude/Projects/scancrowd-demo/`
 - APK: `releases/scancrowd-demo-0.2.22.apk` (6.2 MB, signed) — konsoli päivitetty, APK ei rakennettu
 - Seuraava: 0.2.26 (versionCode 37)
 - commit 39ca084: MapLibre GeoJSON clustering + fitBounds + 5 Playwright-testiä läpi
-- 2026-10-12: MapLibre source-stuck bugi korjattu (addSourceAndLayers vain map.on('load'):ssa, setData vain filteröinnissä)
+- 2026-10-12: MapLibre source-stuck bugi korjattu — versioitu source id (issues-1, issues-2, …) välttää GeoJSON-workerin stale-tilan
 
 ## Console (web)
 
@@ -117,8 +117,9 @@ BASE_URL=https://scancrowd-demo.vercel.app DEMO_PASSWORD=<salasana> \
 
 ### MapLibre-arkkitehtuuri (console LiveMap.tsx)
 - GeoJSON lähde + MapLibre klusterointi (clusterRadius 36, clusterMaxZoom 14)
-- `addSourceAndLayers(map)` kutsutaan VAIN `map.on('load')` ja `map.on('style.load')` sisältä
-- `setData()` kutsutaan vain kun filtteri muuttuu (Effect 2, dep: `issues`) — EI `map.on('load')`:ssa
+- **Versioitu source id** (`issues-1`, `issues-2`, …): moduulitason `let srcVer = 0`, kasvaa jokaisella `rebuildSource`-kutsulla — välttää GeoJSON-workerin stale-tilan (saman id:n poisto+lisäys jättää workerin jumiin)
+- `rebuildSource(map, iss, oldSrcId)`: poistaa vanhat layerit + vanhan sourcen, lisää uuden sourcen uudella id:llä + layerit. Kutsutaan `map.on('load')`, `map.on('style.load')` ja Effect 2 (dep: `issues`) -tilanteessa
+- `srcIdRef` pitää kirjaa nykyisestä source id:stä komponentin sisällä
 - `fitBounds` jokaisella suodatinmuutoksella — kaikki pinnit näkyvissä
 - `window.__scanMapIdle` kasvaa jokaisella `idle`-eventillä — testeille pollattavaksi
 - Piilottu `[data-pin-proxy]`-kontti proxy-spaneilla `data-testid="map-pin"` Playwright-testausta varten
