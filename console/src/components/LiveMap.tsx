@@ -17,6 +17,10 @@ interface Props {
   centerLon: number;
   height?: number;
   zoom?: number;
+  fitPadding?: number;
+  /** Namespaces window globals: window.__scanMap_<key>, __scanMapSrcId_<key>, __scanMapIdle_<key>.
+   *  'main' also sets legacy window.__scanMap / __scanMapSrcId / __scanMapIdle for existing tests. */
+  instanceKey?: string;
   onClickIssue?: (issue: Issue) => void;
   onStreetsReady?: (streets: StreetPoint[]) => void;
 }
@@ -32,7 +36,7 @@ function toGeoJSON(issues: Issue[]) {
   };
 }
 
-function fitToIssues(map: MLMap, iss: Issue[], instant: boolean) {
+function fitToIssues(map: MLMap, iss: Issue[], instant: boolean, padding = 64) {
   if (iss.length === 0) return;
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
   for (const { lon, lat } of iss) {
@@ -42,7 +46,7 @@ function fitToIssues(map: MLMap, iss: Issue[], instant: boolean) {
     if (lat > maxLat) maxLat = lat;
   }
   map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
-    padding: 64, maxZoom: 15, duration: instant ? 0 : 500,
+    padding, maxZoom: 15, duration: instant ? 0 : 500,
   });
 }
 
@@ -89,9 +93,6 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     clusterRadius: 36,
   });
 
-  // Expose current source id so tests can inspect tile states
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (window as any).__scanMapSrcId = sid;
 
   map.addLayer({
     id: 'clusters',
@@ -148,7 +149,8 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
 }
 
 export function LiveMap({
-  issues, centerLat, centerLon, height = 400, zoom = 13, onClickIssue, onStreetsReady,
+  issues, centerLat, centerLon, height = 400, zoom = 13, fitPadding = 64,
+  instanceKey, onClickIssue, onStreetsReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
@@ -161,6 +163,14 @@ export function LiveMap({
 
   issuesRef.current = issues;
   onClickRef.current = onClickIssue;
+
+  function setSrcIdGlobal(sid: string) {
+    if (!instanceKey) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const W = window as any;
+    W[`__scanMapSrcId_${instanceKey}`] = sid;
+    if (instanceKey === 'main') W.__scanMapSrcId = sid;
+  }
 
   // ── Effect 1: create / destroy the MapLibre instance ─────────────────────
   useEffect(() => {
@@ -192,12 +202,17 @@ export function LiveMap({
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).__scanMap = map;
+      const W = window as any;
+      if (instanceKey) {
+        W[`__scanMap_${instanceKey}`] = map;
+        if (instanceKey === 'main') W.__scanMap = map;
+      }
       mapRef.current = map;
 
       map.on('error', (e) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const msg = String((e as any).error?.message ?? '').toLowerCase();
+        const ev = e as any;
+        const msg = String(ev.error?.message ?? '').toLowerCase();
         console.error('[LiveMap] map error:', msg, e);
         if (msg.includes('webgl') || msg.includes('context lost')) setFailed(true);
       });
@@ -234,20 +249,30 @@ export function LiveMap({
         // If style ever reloads (setStyle / theme swap), rebuild with next version
         map.on('style.load', () => {
           const iss = issuesRef.current;
-          srcIdRef.current = rebuildSource(map, iss, srcIdRef.current);
+          const sid = rebuildSource(map, iss, srcIdRef.current);
+          srcIdRef.current = sid;
+          setSrcIdGlobal(sid);
           updateProxy(map, iss);
-          fitToIssues(map, iss, false);
+          fitToIssues(map, iss, false, fitPadding);
         });
 
-        // Idle counter for test polling
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        map.on('idle', () => { (window as any).__scanMapIdle = ((window as any).__scanMapIdle ?? 0) + 1; });
+        // Idle counter for test polling — namespaced per instance
+        map.on('idle', () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const W = window as any;
+          if (instanceKey) {
+            W[`__scanMapIdle_${instanceKey}`] = (W[`__scanMapIdle_${instanceKey}`] ?? 0) + 1;
+            if (instanceKey === 'main') W.__scanMapIdle = W[`__scanMapIdle_${instanceKey}`];
+          }
+        });
 
         // Initial source + layers under a fresh versioned id
         const iss = issuesRef.current;
-        srcIdRef.current = rebuildSource(map, iss, null);
+        const initSid = rebuildSource(map, iss, null);
+        srcIdRef.current = initSid;
+        setSrcIdGlobal(initSid);
         updateProxy(map, iss);
-        fitToIssues(map, iss, true);
+        fitToIssues(map, iss, true, fitPadding);
         setMapReady(true);
 
         map.once('idle', () => {
@@ -288,9 +313,11 @@ export function LiveMap({
     if (!map || !mapReady) return;
 
     const iss = issuesRef.current;
-    srcIdRef.current = rebuildSource(map, iss, srcIdRef.current);
+    const sid = rebuildSource(map, iss, srcIdRef.current);
+    srcIdRef.current = sid;
+    setSrcIdGlobal(sid);
     updateProxy(map, iss);
-    fitToIssues(map, iss, false);
+    fitToIssues(map, iss, false, fitPadding);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issues]);
 

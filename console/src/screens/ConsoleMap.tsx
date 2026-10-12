@@ -56,6 +56,7 @@ export function ConsoleMap({ data, cityData, onOpenIssue, onStreetsReady }: Prop
           centerLon={cityData.lon}
           height={560}
           zoom={14}
+          instanceKey="main"
           onClickIssue={onOpenIssue}
           onStreetsReady={onStreetsReady}
         />

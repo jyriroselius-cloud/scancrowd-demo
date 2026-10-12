@@ -107,7 +107,7 @@ cd app && npx playwright test tests/console-geolocation.spec.ts
 ```bash
 cd /Users/jyriroselius/Claude/Projects/scancrowd-demo && npx playwright test tests/console-map-pins.spec.ts
 ```
-6 testiä: karttapinnien laskenta, FallbackMap, suodatinchip, työlista, klikkaus, rendered-features (skipissä lokaalisti). Kaikki 5 lokaalisti ✅ (2026-10-12)
+7 testiä: karttapinnien laskenta, FallbackMap, suodatinchip, työlista, klikkaus, rendered-features, Work Queue LiveMap (testit 6+7 skipissä lokaalisti). Kaikki 5 lokaalisti ✅ (2026-10-12)
 
 Tuotantotesti (Test 6):
 ```bash
@@ -117,8 +117,10 @@ BASE_URL=https://scancrowd-demo.vercel.app DEMO_PASSWORD=<salasana> \
 
 ### MapLibre-arkkitehtuuri (console LiveMap.tsx)
 - GeoJSON lähde + MapLibre klusterointi (clusterRadius 36, clusterMaxZoom 14)
-- **Versioitu source id** (`issues-1`, `issues-2`, …): moduulitason `let srcVer = 0`, kasvaa jokaisella `rebuildSource`-kutsulla. `window.__scanMapSrcId` = nykyinen id (testeille).
-- **`text-font: ["Noto Sans Regular"]`** cluster-count symbol-layerissa — kriittinen! Puuttuva fontti → OpenFreeMap glyfi-palvelin palauttaa 404 → kaikki tilet "errored" → 0 renderöityä pinniä. Noto Sans on se fontti mitä liberty-style käyttää.
+- **Versioitu source id** (`issues-1`, `issues-2`, …): moduulitason `let srcVer = 0`, kasvaa jokaisella `rebuildSource`-kutsulla.
+- **`text-font: ["Noto Sans Regular"]`** cluster-count symbol-layerissa — kriittinen! Puuttuva fontti → OpenFreeMap glyfi-palvelin palauttaa 404 → kaikki tilet "errored" → 0 renderöityä pinniä.
+- **`instanceKey` prop** nimiavaruuttaa window-globaalit: `window.__scanMap_<key>`, `__scanMapSrcId_<key>`, `__scanMapIdle_<key>`. ConsoleMap käyttää `instanceKey="main"` (lisäksi legacy `window.__scanMap` yhteensopivuutta varten), WorkQueue käyttää `instanceKey="wq"`.
+- **`fitPadding` prop** (oletus 64 px) — WorkQueue käyttää 32 px.
 - `rebuildSource(map, iss, oldSrcId)`: poistaa vanhat layerit + vanhan sourcen, lisää uuden sourcen uudella id:llä + layerit. Kutsutaan `map.on('load')`, `map.on('style.load')` ja Effect 2 (dep: `issues`) -tilanteessa
 - `srcIdRef` pitää kirjaa nykyisestä source id:stä komponentin sisällä
 - `fitBounds` jokaisella suodatinmuutoksella — kaikki pinnit näkyvissä

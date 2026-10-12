@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { GeneratedData, Issue, CityData } from '@shared/types';
 import { StatusPill } from '../components/StatusPill';
-import { FallbackMap } from '../components/FallbackMap';
+import { LiveMap } from '../components/LiveMap';
 
 type Filter = 'All' | 'New' | 'Accepted' | 'Planned' | 'In repair';
 
@@ -162,15 +162,17 @@ export function WorkQueue({ data, cityData, onOpenIssue }: Props) {
             <h2 style={{ margin: 0, font: '800 16px Manrope, sans-serif' }}>Open issues on the map</h2>
             <span style={{ font: '600 12px Manrope, sans-serif', color: 'var(--text2)' }}>Last 30 days</span>
           </div>
-          <FallbackMap
+          <LiveMap
             issues={data.issues.filter(i => i.status !== 'Fixed' && i.status !== 'Declined')}
             centerLat={cityData.lat}
             centerLon={cityData.lon}
             height={380}
+            fitPadding={32}
+            instanceKey="wq"
             onClickIssue={onOpenIssue}
           />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, font: '600 12px Manrope, sans-serif', color: 'var(--text3)' }}>
-            {[['New', 'var(--new)'], ['Accepted', 'var(--accepted)'], ['In repair', 'var(--repair)'], ['Fixed', 'var(--fixed)']].map(([label, bg]) => (
+            {[['New', 'var(--new)'], ['Accepted', 'var(--accepted)'], ['Planned', 'var(--repair)'], ['In repair', 'var(--repair)']].map(([label, bg]) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 5, background: bg }} />{label}
               </span>

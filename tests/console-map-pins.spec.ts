@@ -158,6 +158,54 @@ test('Map page: clicking a pin opens the issue', async ({ page }) => {
   expect(true).toBe(true);
 });
 
+// ── Test 7: Work queue LiveMap — no errored tiles, no Fixed features ──────────
+// instanceKey="wq" → window.__scanMap_wq, __scanMapSrcId_wq, __scanMapIdle_wq
+
+test('Work queue LiveMap: no errored tiles and no Fixed features rendered', async ({ page }) => {
+  test.skip(!process.env.BASE_URL, 'Set BASE_URL to run against a real browser (production)');
+
+  await setupAuth(page);
+  await page.goto(BASE);
+  await page.waitForSelector('nav', { timeout: 10000 });
+
+  // Work queue is the default screen — wait for proxy pins
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-testid="map-pin"]').length > 0,
+    { timeout: 20000 },
+  );
+
+  // Wait for Work Queue map idle
+  await page.waitForFunction(
+    () => (window as unknown as Record<string, unknown>).__scanMapIdle_wq as number > 0,
+    { timeout: 15000 },
+  );
+
+  const { erroredTiles, totalTiles, renderedFeatureCount, fixedCount, srcId } =
+    await page.evaluate(() => {
+      const wins = window as unknown as Record<string, unknown>;
+      const m = wins['__scanMap_wq'] as {
+        queryRenderedFeatures: (opts: { layers: string[] }) => Array<{ properties: Record<string, unknown> }>;
+        style: { sourceCaches: Record<string, { _tiles: Record<string, { state: string }> }> };
+      };
+      const srcId = String(wins['__scanMapSrcId_wq'] ?? '');
+
+      const sc = m?.style?.sourceCaches?.[srcId];
+      const allTiles = sc ? Object.values(sc._tiles) : [];
+      const erroredTiles = allTiles.filter((t) => t.state === 'errored').length;
+      const totalTiles = allTiles.length;
+
+      const features = m?.queryRenderedFeatures({ layers: ['clusters', 'unclustered-point'] }) ?? [];
+      const renderedFeatureCount = features.length;
+      const fixedCount = features.filter((f) => f.properties?.status === 'Fixed').length;
+
+      return { erroredTiles, totalTiles, renderedFeatureCount, fixedCount, srcId };
+    });
+
+  expect(erroredTiles, `${erroredTiles}/${totalTiles} tiles errored for source "${srcId}"`).toBe(0);
+  expect(renderedFeatureCount, 'Work queue map rendered 0 features').toBeGreaterThan(0);
+  expect(fixedCount, 'Work queue map must not show Fixed issues').toBe(0);
+});
+
 // ── Test 6: MapLibre rendered features match the filtered issue count ─────────
 // Verifies the source tiles are not errored (glyph/font failures cause "errored"
 // tile state and 0 rendered features even though the source has data).
