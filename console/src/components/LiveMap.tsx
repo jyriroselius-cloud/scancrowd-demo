@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { Map as MLMap } from 'maplibre-gl';
+import type { Map as MLMap, ExpressionSpecification } from 'maplibre-gl';
 import type { Issue, StreetPoint } from '@shared/types';
 import { extractStreets } from '@shared/extractStreets';
 import { FallbackMap } from './FallbackMap';
 
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
-// Fixed layer ids — always the same, reused across rebuilds.
 const LAYER_IDS = ['cluster-count', 'unclustered-point', 'clusters'] as const;
 
-// Versioned source id so each rebuild gets a clean slot in the style.
+// Padding object: bottom 56 px keeps fitBounds clear of the attribution bar.
+const FIT_PADDING = { top: 40, bottom: 56, left: 40, right: 40 } as const;
+
+// Versioned source id — avoids GeoJSON worker stale state on same id.
 let srcVer = 0;
 
 interface Props {
@@ -17,9 +19,8 @@ interface Props {
   centerLon: number;
   height?: number;
   zoom?: number;
-  fitPadding?: number;
-  /** Namespaces window globals: window.__scanMap_<key>, __scanMapSrcId_<key>, __scanMapIdle_<key>.
-   *  'main' also sets legacy window.__scanMap / __scanMapSrcId / __scanMapIdle for existing tests. */
+  /** Namespaces window globals: __scanMap_<key>, __scanMapSrcId_<key>, __scanMapIdle_<key>.
+   *  'main' also sets legacy window.__scanMap / __scanMapSrcId / __scanMapIdle. */
   instanceKey?: string;
   onClickIssue?: (issue: Issue) => void;
   onStreetsReady?: (streets: StreetPoint[]) => void;
@@ -36,7 +37,7 @@ function toGeoJSON(issues: Issue[]) {
   };
 }
 
-function fitToIssues(map: MLMap, iss: Issue[], instant: boolean, padding = 64) {
+function fitToIssues(map: MLMap, iss: Issue[], instant: boolean) {
   if (iss.length === 0) return;
   let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
   for (const { lon, lat } of iss) {
@@ -46,7 +47,9 @@ function fitToIssues(map: MLMap, iss: Issue[], instant: boolean, padding = 64) {
     if (lat > maxLat) maxLat = lat;
   }
   map.fitBounds([[minLon, minLat], [maxLon, maxLat]], {
-    padding, maxZoom: 15, duration: instant ? 0 : 500,
+    padding: FIT_PADDING,
+    maxZoom: 15,
+    duration: instant ? 0 : 500,
   });
 }
 
@@ -70,9 +73,6 @@ function updateProxy(map: MLMap, iss: Issue[]) {
   );
 }
 
-// Remove old layers + source (if any), then add a fresh source under a new
-// versioned id and re-add the layers pointing at it.
-// Returns the new source id so callers can store it.
 function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): string {
   for (const id of LAYER_IDS) {
     if (map.getLayer(id)) map.removeLayer(id);
@@ -80,8 +80,6 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
   if (oldSrcId && map.getSource(oldSrcId)) map.removeSource(oldSrcId);
 
   const sid = `issues-${++srcVer}`;
-
-  // Always pass a valid FeatureCollection
   const geojson = toGeoJSON(iss);
   console.log(`[LiveMap] addSource ${sid} with ${geojson.features.length} features`);
 
@@ -91,8 +89,33 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     cluster: true,
     clusterMaxZoom: 14,
     clusterRadius: 36,
+    // Accumulate per-status counts so cluster color reflects dominant status.
+    clusterProperties: {
+      cnt_new:      ['+', ['case', ['==', ['get', 'status'], 'New'],       1, 0]],
+      cnt_accepted: ['+', ['case', ['==', ['get', 'status'], 'Accepted'],  1, 0]],
+      cnt_planned:  ['+', ['case', ['==', ['get', 'status'], 'Planned'],   1, 0]],
+      cnt_repair:   ['+', ['case', ['==', ['get', 'status'], 'In repair'], 1, 0]],
+      cnt_fixed:    ['+', ['case', ['==', ['get', 'status'], 'Fixed'],     1, 0]],
+      cnt_declined: ['+', ['case', ['==', ['get', 'status'], 'Declined'],  1, 0]],
+    },
   });
 
+  // Cluster circle color = color of the dominant status within the cluster.
+  const dominantColor: ExpressionSpecification = [
+    'let', 'mx',
+    ['max',
+      ['get', 'cnt_new'], ['get', 'cnt_accepted'], ['get', 'cnt_planned'],
+      ['get', 'cnt_repair'], ['get', 'cnt_fixed'], ['get', 'cnt_declined'],
+    ] as ExpressionSpecification,
+    ['case',
+      ['==', ['var', 'mx'], ['get', 'cnt_repair']],   '#ffb547',
+      ['==', ['var', 'mx'], ['get', 'cnt_planned']],  '#b18cff',
+      ['==', ['var', 'mx'], ['get', 'cnt_accepted']], '#5aa9ff',
+      ['==', ['var', 'mx'], ['get', 'cnt_fixed']],    '#3ddc97',
+      ['==', ['var', 'mx'], ['get', 'cnt_declined']], '#ff6b6b',
+      '#9aa7ab',
+    ] as ExpressionSpecification,
+  ] as ExpressionSpecification;
 
   map.addLayer({
     id: 'clusters',
@@ -100,7 +123,7 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     source: sid,
     filter: ['has', 'point_count'],
     paint: {
-      'circle-color': '#5aa9ff',
+      'circle-color': dominantColor,
       'circle-radius': ['step', ['get', 'point_count'], 18, 10, 24, 30, 30],
       'circle-stroke-width': 2.5,
       'circle-stroke-color': '#0c1d24',
@@ -115,10 +138,9 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     layout: {
       'text-field': '{point_count_abbreviated}',
       'text-size': 12,
-      // Must match the glyph fontstack the OpenFreeMap liberty style serves.
-      // Omitting text-font causes MapLibre to request "Open Sans Regular"
-      // which the OpenFreeMap glyph server does not have → glyph 404 →
-      // all tiles of the source enter "errored" state → nothing renders.
+      // Must match the glyph fontstack served by OpenFreeMap liberty style.
+      // Missing text-font causes MapLibre to request "Open Sans Regular" →
+      // 404 → all source tiles enter "errored" state → 0 rendered features.
       'text-font': ['Noto Sans Regular'],
     },
     paint: { 'text-color': '#0c1d24' },
@@ -133,7 +155,7 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
         'match', ['get', 'status'],
         'New',       '#9aa7ab',
         'Accepted',  '#5aa9ff',
-        'Planned',   '#ffb547',
+        'Planned',   '#b18cff',
         'In repair', '#ffb547',
         'Fixed',     '#3ddc97',
         'Declined',  '#ff6b6b',
@@ -149,14 +171,15 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
 }
 
 export function LiveMap({
-  issues, centerLat, centerLon, height = 400, zoom = 13, fitPadding = 64,
+  issues, centerLat, centerLon, height = 400, zoom = 13,
   instanceKey, onClickIssue, onStreetsReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
-  const srcIdRef = useRef<string | null>(null);   // current versioned source id
+  const srcIdRef = useRef<string | null>(null);
   const issuesRef = useRef(issues);
   const onClickRef = useRef(onClickIssue);
+  const mapReadyRef = useRef(false);
   const [failed, setFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const streetsReadyRef = useRef(false);
@@ -176,12 +199,12 @@ export function LiveMap({
   useEffect(() => {
     if (!containerRef.current || failed) return;
 
-    // Ensure only one map instance exists
     if (mapRef.current) {
       mapRef.current.remove();
       mapRef.current = null;
     }
     srcIdRef.current = null;
+    mapReadyRef.current = false;
 
     let map: MLMap;
     let cancelled = false;
@@ -191,6 +214,12 @@ export function LiveMap({
 
     const initTimeout = setTimeout(() => setFailed(true), 12000);
 
+    // ResizeObserver — keeps the map canvas in sync with its flex container.
+    const ro = new ResizeObserver(() => {
+      if (!cancelled && mapRef.current) mapRef.current.resize();
+    });
+    if (containerRef.current) ro.observe(containerRef.current);
+
     import('maplibre-gl').then(({ Map }) => {
       if (cancelled || !containerRef.current) return;
 
@@ -199,6 +228,8 @@ export function LiveMap({
         style: STYLE,
         center: [centerLon, centerLat],
         zoom,
+        // compact: true shrinks the attribution bar so it doesn't overlap pins.
+        attributionControl: { compact: true },
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,8 +242,7 @@ export function LiveMap({
 
       map.on('error', (e) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const ev = e as any;
-        const msg = String(ev.error?.message ?? '').toLowerCase();
+        const msg = String((e as any).error?.message ?? '').toLowerCase();
         console.error('[LiveMap] map error:', msg, e);
         if (msg.includes('webgl') || msg.includes('context lost')) setFailed(true);
       });
@@ -221,8 +251,6 @@ export function LiveMap({
         clearTimeout(initTimeout);
         map.resize();
 
-        // Wire interaction handlers once. They survive layer removal because
-        // MapLibre stores them on the map object keyed by layer id.
         map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
         map.on('mouseleave', 'clusters', () => { map.getCanvas().style.cursor = ''; });
         map.on('click', 'clusters', (e) => {
@@ -246,34 +274,39 @@ export function LiveMap({
           if (issue) onClickRef.current?.(issue);
         });
 
-        // If style ever reloads (setStyle / theme swap), rebuild with next version
         map.on('style.load', () => {
           const iss = issuesRef.current;
           const sid = rebuildSource(map, iss, srcIdRef.current);
           srcIdRef.current = sid;
           setSrcIdGlobal(sid);
           updateProxy(map, iss);
-          fitToIssues(map, iss, false, fitPadding);
+          fitToIssues(map, iss, false);
         });
 
-        // Idle counter for test polling — namespaced per instance
         map.on('idle', () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const W = window as any;
+          const W2 = window as any;
           if (instanceKey) {
-            W[`__scanMapIdle_${instanceKey}`] = (W[`__scanMapIdle_${instanceKey}`] ?? 0) + 1;
-            if (instanceKey === 'main') W.__scanMapIdle = W[`__scanMapIdle_${instanceKey}`];
+            W2[`__scanMapIdle_${instanceKey}`] = (W2[`__scanMapIdle_${instanceKey}`] ?? 0) + 1;
+            if (instanceKey === 'main') W2.__scanMapIdle = W2[`__scanMapIdle_${instanceKey}`];
           }
         });
 
-        // Initial source + layers under a fresh versioned id
         const iss = issuesRef.current;
         const initSid = rebuildSource(map, iss, null);
         srcIdRef.current = initSid;
         setSrcIdGlobal(initSid);
         updateProxy(map, iss);
-        fitToIssues(map, iss, true, fitPadding);
-        setMapReady(true);
+
+        // Defer fitBounds to after the first idle so the flex container has
+        // its final CSS-computed size and map.resize() has been processed.
+        map.once('idle', () => {
+          if (cancelled) return;
+          map.resize();
+          fitToIssues(map, iss, true);
+          mapReadyRef.current = true;
+          setMapReady(true);
+        });
 
         map.once('idle', () => {
           if (!streetsReadyRef.current && onStreetsReady) {
@@ -298,10 +331,12 @@ export function LiveMap({
 
     return () => {
       cancelled = true;
+      ro.disconnect();
       clearTimeout(initTimeout);
       map?.remove();
       mapRef.current = null;
       srcIdRef.current = null;
+      mapReadyRef.current = false;
       setMapReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -317,7 +352,7 @@ export function LiveMap({
     srcIdRef.current = sid;
     setSrcIdGlobal(sid);
     updateProxy(map, iss);
-    fitToIssues(map, iss, false, fitPadding);
+    fitToIssues(map, iss, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [issues]);
 

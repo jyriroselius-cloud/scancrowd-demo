@@ -167,12 +167,11 @@ export function WorkQueue({ data, cityData, onOpenIssue }: Props) {
             centerLat={cityData.lat}
             centerLon={cityData.lon}
             height={380}
-            fitPadding={32}
             instanceKey="wq"
             onClickIssue={onOpenIssue}
           />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, font: '600 12px Manrope, sans-serif', color: 'var(--text3)' }}>
-            {[['New', 'var(--new)'], ['Accepted', 'var(--accepted)'], ['Planned', 'var(--repair)'], ['In repair', 'var(--repair)']].map(([label, bg]) => (
+            {[['New', 'var(--new)'], ['Accepted', 'var(--accepted)'], ['Planned', 'var(--planned)'], ['In repair', 'var(--repair)']].map(([label, bg]) => (
               <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ width: 10, height: 10, borderRadius: 5, background: bg }} />{label}
               </span>

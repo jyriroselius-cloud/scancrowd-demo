@@ -10,6 +10,7 @@ Hakemisto: `/Users/jyriroselius/Claude/Projects/scancrowd-demo/`
 - Seuraava: 0.2.26 (versionCode 37)
 - commit 39ca084: MapLibre GeoJSON clustering + fitBounds + 5 Playwright-testiä läpi
 - 2026-10-12: MapLibre pinnit korjattu — `text-font: ["Noto Sans Regular"]` cluster-count layeriin (puuttuva fontti aiheutti glyfi-404 → kaikki tilet "errored" → 0 renderöityä)
+- 2026-10-12: Planned sai oman värin #b18cff (violetti), klusteri värittyy dominantin statuksen mukaan, fitBounds deferred first-idle + ResizeObserver, attribution compact:true
 
 ## Console (web)
 

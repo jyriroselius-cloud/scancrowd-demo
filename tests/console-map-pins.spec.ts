@@ -204,6 +204,26 @@ test('Work queue LiveMap: no errored tiles and no Fixed features rendered', asyn
   expect(erroredTiles, `${erroredTiles}/${totalTiles} tiles errored for source "${srcId}"`).toBe(0);
   expect(renderedFeatureCount, 'Work queue map rendered 0 features').toBeGreaterThan(0);
   expect(fixedCount, 'Work queue map must not show Fixed issues').toBe(0);
+
+  // Bounds check: every rendered feature centre must be ≥20 px from each edge.
+  const outOfBounds = await page.evaluate(() => {
+    const wins = window as unknown as Record<string, unknown>;
+    const m = wins['__scanMap_wq'] as {
+      getCanvas: () => HTMLCanvasElement;
+      project: (coord: [number, number]) => { x: number; y: number };
+      queryRenderedFeatures: (opts: { layers: string[] }) => Array<{ geometry: { coordinates: [number, number] } }>;
+    };
+    const canvas = m.getCanvas();
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    const MARGIN = 20;
+    return m.queryRenderedFeatures({ layers: ['clusters', 'unclustered-point'] })
+      .filter((f) => {
+        const { x, y } = m.project(f.geometry.coordinates);
+        return x < MARGIN || x > w - MARGIN || y < MARGIN || y > h - MARGIN;
+      }).length;
+  });
+  expect(outOfBounds, `${outOfBounds} features are within 20 px of the map edge`).toBe(0);
 });
 
 // ── Test 6: MapLibre rendered features match the filtered issue count ─────────
