@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Issue, StreetPoint } from '@shared/types';
-import { extractStreets } from '@shared/extractStreets';
+import { extractStreets, extractWaterPolygons } from '@shared/extractStreets';
 import MapSvg from './MapSvg';
 
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -21,7 +21,7 @@ interface Props {
   centerLon: number;
   userLat?: number;
   userLon?: number;
-  onStreetsReady?: (streets: StreetPoint[]) => void;
+  onStreetsReady?: (streets: StreetPoint[], waterPolygons: [number, number][][]) => void;
   onIssueTap?: (id: string) => void;
 }
 
@@ -80,9 +80,13 @@ export default function AppMap({ issues, centerLat, centerLon, userLat, userLon,
             }) as unknown as Parameters<typeof extractStreets>[0];
 
             const streets = extractStreets(features, centerLat, centerLon);
+            const waterFeats = map.querySourceFeatures('openmaptiles', {
+              sourceLayer: 'water',
+            }) as unknown as Parameters<typeof extractWaterPolygons>[0];
+            const waterPolygons = extractWaterPolygons(waterFeats, centerLat, centerLon);
             if (streets.length >= 3) {
               streetsReadyRef.current = true;
-              onStreetsReady(streets);
+              onStreetsReady(streets, waterPolygons);
             }
           } catch {
             // tile query failed — parent keeps bundled streets

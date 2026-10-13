@@ -32,11 +32,19 @@ export interface Reporter {
   initials: string;
 }
 
+export interface StreetSegment {
+  name: string;
+  highway: string;
+  coords: [number, number][];  // [lon, lat] MapLibre-konventio
+}
+
 export interface CityData {
   name: string;
   lat: number;
   lon: number;
   streets: StreetPoint[];
+  segments?: StreetSegment[];
+  waterPolygons?: [number, number][][];  // polygon rings [lon, lat]
 }
 
 export interface StreetPoint {

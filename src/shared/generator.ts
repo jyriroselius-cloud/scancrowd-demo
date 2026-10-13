@@ -1,4 +1,4 @@
-import type { Issue, Reporter, GeneratedData, Kpi, Category, Status, Contractor, Mission } from './types';
+import type { Issue, Reporter, GeneratedData, Kpi, Category, Status, Contractor, Mission, StreetSegment } from './types';
 import type { CityData } from './types';
 
 // Mulberry32 PRNG — deterministic, seedable
@@ -92,59 +92,193 @@ function nextWeekRange(weeksAhead: number): { label: string; range: string } {
   return { label: `Wk ${weekNum}`, range };
 }
 
+// ── Segment-based placement helpers ────────────────────────────────────────
+
+const DEG_PER_M = 1 / 111320;
+const WATER_BUFFER_DEG = 15 * DEG_PER_M;
+
+const ROAD_CATEGORIES = new Set<Category>(['Pothole', 'Road marking', 'Manhole']);
+const ROAD_HIGHWAYS = new Set(['primary', 'secondary', 'tertiary', 'residential', 'unclassified', 'living_street']);
+
+function pointOnSegment(seg: StreetSegment, rng: () => number): { lat: number; lon: number; address: string } {
+  const coords = seg.coords;
+  const idx = Math.floor(rng() * Math.max(1, coords.length - 1));
+  const t = rng();
+  const [lon0, lat0] = coords[idx];
+  const [lon1, lat1] = coords[Math.min(idx + 1, coords.length - 1)];
+  const offsetM = (rng() - 0.5) * 10;
+  const lonPerM = 1 / (111320 * Math.cos((lat0 * Math.PI) / 180));
+  const dx = lon1 - lon0;
+  const dy = lat1 - lat0;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  const nx = len > 0 ? -dy / len : 0;
+  const ny = len > 0 ? dx / len : 0;
+  const num = Math.floor(rng() * 100) + 1;
+  return {
+    lat: lat0 + t * dy + offsetM * DEG_PER_M * ny,
+    lon: lon0 + t * dx + offsetM * lonPerM * nx,
+    address: `${seg.name} ${num}`,
+  };
+}
+
+function pickSegment(segs: StreetSegment[], cat: Category, rng: () => number): StreetSegment {
+  const isRoadOnly = ROAD_CATEGORIES.has(cat);
+  if (isRoadOnly) {
+    const roadPool = segs.filter(s => ROAD_HIGHWAYS.has(s.highway));
+    const pool = roadPool.length > 0 ? roadPool : segs;
+    return pool[Math.floor(rng() * pool.length)];
+  }
+  return segs[Math.floor(rng() * segs.length)];
+}
+
+function pointInRing(lat: number, lon: number, ring: [number, number][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function distToEdgeDeg(lat: number, lon: number, ring: [number, number][]): number {
+  let minD = Infinity;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [ax, ay] = ring[j];
+    const [bx, by] = ring[i];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, ((lon - ax) * dx + (lat - ay) * dy) / len2)) : 0;
+    const d = Math.sqrt((lon - (ax + t * dx)) ** 2 + (lat - (ay + t * dy)) ** 2);
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+function nearWater(lat: number, lon: number, waterPolygons: [number, number][][]): boolean {
+  for (const ring of waterPolygons) {
+    if (pointInRing(lat, lon, ring)) return true;
+    if (distToEdgeDeg(lat, lon, ring) < WATER_BUFFER_DEG) return true;
+  }
+  return false;
+}
+
+// ── Main generator ──────────────────────────────────────────────────────────
+
 export function generateData(cityData: CityData, seedOverride?: number): GeneratedData {
   const seed = seedOverride ?? hashString(cityData.name);
   const rng = mulberry32(seed);
+
+  const useSegments = (cityData.segments?.length ?? 0) >= 5;
+  const segs = useSegments ? cityData.segments! : [];
+  const waterPolys = cityData.waterPolygons ?? [];
 
   const streets = cityData.streets.length > 0 ? cityData.streets : [
     { name: 'Main Street', lat: cityData.lat, lon: cityData.lon },
   ];
 
-  // Hotspots: 2–3 clusters
+  // Hotspots: 2–3 kpl
   const hotspotCount = 2 + Math.floor(rng() * 2);
-  const hotspots = Array.from({ length: hotspotCount }, () => {
-    const base = streets[Math.floor(rng() * streets.length)];
-    return {
-      lat: base.lat + (rng() - 0.5) * 0.02,
-      lon: base.lon + (rng() - 0.5) * 0.04,
-    };
-  });
+  let hotspots: { lat: number; lon: number }[];
+
+  if (useSegments) {
+    const mainSegs = segs.filter(s => s.highway === 'primary' || s.highway === 'secondary');
+    const hotspotBase = mainSegs.length > 0 ? mainSegs : segs;
+    hotspots = Array.from({ length: hotspotCount }, () => {
+      const seg = hotspotBase[Math.floor(rng() * hotspotBase.length)];
+      const midIdx = Math.floor(seg.coords.length / 2);
+      return { lat: seg.coords[midIdx][1], lon: seg.coords[midIdx][0] };
+    });
+  } else {
+    hotspots = Array.from({ length: hotspotCount }, () => {
+      const base = streets[Math.floor(rng() * streets.length)];
+      return {
+        lat: base.lat + (rng() - 0.5) * 0.02,
+        lon: base.lon + (rng() - 0.5) * 0.04,
+      };
+    });
+  }
 
   const issueCount = 120 + Math.floor(rng() * 61);
   const issues: Issue[] = [];
 
   for (let i = 0; i < issueCount; i++) {
     const isHotspot = rng() < 0.25;
-    let baseLat: number, baseLon: number, address: string;
-
-    if (isHotspot) {
-      const hs = hotspots[Math.floor(rng() * hotspots.length)];
-      baseLat = hs.lat + (rng() - 0.5) * 0.003;
-      baseLon = hs.lon + (rng() - 0.5) * 0.006;
-      const nearStreet = streets.reduce((best, s) => {
-        const d = Math.abs(s.lat - baseLat) + Math.abs(s.lon - baseLon);
-        return d < Math.abs(best.lat - baseLat) + Math.abs(best.lon - baseLon) ? s : best;
-      });
-      const num = Math.floor(rng() * 50) + 1;
-      address = `${nearStreet.name} ${num}`;
-    } else {
-      const street = streets[Math.floor(rng() * streets.length)];
-      baseLat = street.lat + (rng() - 0.5) * 0.03;
-      baseLon = street.lon + (rng() - 0.5) * 0.06;
-      const num = Math.floor(rng() * 100) + 1;
-      address = `${street.name} ${num}`;
-    }
+    let baseLat: number = cityData.lat;
+    let baseLon: number = cityData.lon;
+    let address: string = 'Unknown';
 
     const catItem = pickWeighted<{ cat: Category; weight: number }>(CATEGORIES, rng);
-    const statusItem = pickWeighted<{ status: Status; weight: number }>(STATUS_WEIGHTS, rng);
     const cat = catItem.cat;
+
+    if (useSegments) {
+      let placed = false;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        let seg: StreetSegment;
+        if (isHotspot) {
+          const hs = hotspots[Math.floor(rng() * hotspots.length)];
+          let bestSeg = segs[0];
+          let bestD = Infinity;
+          for (const s of segs) {
+            const midIdx = Math.floor(s.coords.length / 2);
+            const d = Math.abs(s.coords[midIdx][1] - hs.lat) + Math.abs(s.coords[midIdx][0] - hs.lon);
+            if (d < bestD) { bestD = d; bestSeg = s; }
+          }
+          seg = ROAD_CATEGORIES.has(cat) && !ROAD_HIGHWAYS.has(bestSeg.highway)
+            ? pickSegment(segs, cat, rng)
+            : bestSeg;
+        } else {
+          seg = pickSegment(segs, cat, rng);
+        }
+        const pt = pointOnSegment(seg, rng);
+        if (!nearWater(pt.lat, pt.lon, waterPolys)) {
+          baseLat = pt.lat;
+          baseLon = pt.lon;
+          address = pt.address;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        // Fallback: midsegment (ei rng-kulutusta joka sotkisi determinismin)
+        const seg = segs[i % segs.length];
+        const midIdx = Math.floor(seg.coords.length / 2);
+        baseLat = seg.coords[midIdx][1];
+        baseLon = seg.coords[midIdx][0];
+        address = `${seg.name} ${(i % 100) + 1}`;
+      }
+    } else {
+      // Vanha logiikka (GPS-mode / ei segmenttejä)
+      if (isHotspot) {
+        const hs = hotspots[Math.floor(rng() * hotspots.length)];
+        baseLat = hs.lat + (rng() - 0.5) * 0.003;
+        baseLon = hs.lon + (rng() - 0.5) * 0.006;
+        const nearStreet = streets.reduce((best, s) => {
+          const d = Math.abs(s.lat - baseLat) + Math.abs(s.lon - baseLon);
+          return d < Math.abs(best.lat - baseLat) + Math.abs(best.lon - baseLon) ? s : best;
+        });
+        const num = Math.floor(rng() * 50) + 1;
+        address = `${nearStreet.name} ${num}`;
+      } else {
+        const street = streets[Math.floor(rng() * streets.length)];
+        baseLat = street.lat + (rng() - 0.5) * 0.03;
+        baseLon = street.lon + (rng() - 0.5) * 0.06;
+        const num = Math.floor(rng() * 100) + 1;
+        address = `${street.name} ${num}`;
+      }
+    }
+
+    const statusItem = pickWeighted<{ status: Status; weight: number }>(STATUS_WEIGHTS, rng);
     const status = statusItem.status;
     const titles = TITLE_MAP[cat];
     const title = titles[Math.floor(rng() * titles.length)];
 
     const severity = (Math.floor(rng() * 5) + 1) as 1 | 2 | 3 | 4 | 5;
     const reports = Math.max(1, Math.floor(Math.pow(rng(), 2) * 15));
-    const roadClass = Math.floor(rng() * 3) + 1; // 1=major 2=secondary 3=minor
+    const roadClass = Math.floor(rng() * 3) + 1;
     const priority = Math.round(
       (severity / 5) * 50 + (reports / 15) * 30 + ((3 - roadClass) / 2) * 20
     );
@@ -197,7 +331,6 @@ export function generateData(cityData: CityData, seedOverride?: number): Generat
   const newIssues = issues.filter((i) => i.status === 'New');
   const awaitingReview = issues.filter((i) => i.status === 'New' || i.status === 'Accepted');
   const planned = issues.filter((i) => i.status === 'Planned' || i.status === 'In repair');
-  const fixed = issues.filter((i) => i.status === 'Fixed');
 
   const kpis: Kpi[] = [
     {

@@ -165,12 +165,12 @@ export function App() {
   }, []);
 
   // Called by Home when AppMap has extracted real streets from tiles
-  const handleStreetsReady = useCallback((streets: StreetPoint[]) => {
+  const handleStreetsReady = useCallback((streets: StreetPoint[], waterPolygons?: [number, number][][]) => {
     if (streetsAppliedRef.current) return;
     streetsAppliedRef.current = true;
     const seed = seedRef.current;
     setCityData((prev) => {
-      const updated: CityData = { ...prev, streets };
+      const updated: CityData = { ...prev, streets, waterPolygons: waterPolygons ?? [] };
       setGenerated(generateData(updated, seed));
       return updated;
     });

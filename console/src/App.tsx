@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { generateData } from '@shared/generator';
 import { findCity, defaultCity, CITIES } from '@shared/cities/index';
 import { locationSeed } from '@shared/locationSeed';
@@ -64,6 +64,11 @@ export function App() {
   const [cityData, setCityData] = useState<CityData>(initialCity);
   const [data, setData] = useState<GeneratedData>(() => generateData(initialCity, params.seed));
   const [geoStatus, setGeoStatus] = useState<GeoStatus>('ready');
+
+  // Expose cityData for Playwright tests
+  useEffect(() => {
+    (window as unknown as { __cityData?: CityData }).__cityData = cityData;
+  }, [cityData]);
   const [screen, setScreen] = useState<Screen>('queue');
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -79,12 +84,12 @@ export function App() {
     setScreen('queue');
   }
 
-  const handleStreetsReady = useCallback((streets: StreetPoint[]) => {
+  const handleStreetsReady = useCallback((streets: StreetPoint[], waterPolygons?: [number, number][][]) => {
     if (streetsAppliedRef.current) return;
     streetsAppliedRef.current = true;
     const seed = seedRef.current;
     setCityData((prev) => {
-      const updated: CityData = { ...prev, streets };
+      const updated: CityData = { ...prev, streets, waterPolygons: waterPolygons ?? [] };
       setData(generateData(updated, seed));
       return updated;
     });

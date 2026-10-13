@@ -52,3 +52,41 @@ export function extractStreets(
 
   return out;
 }
+
+interface WaterFeature {
+  geometry: { type: string; coordinates: number[][][] | number[][] } | null;
+  properties: Record<string, unknown> | null;
+}
+
+export function extractWaterPolygons(
+  features: WaterFeature[],
+  centerLat: number,
+  centerLon: number,
+  maxKm = 2,
+): [number, number][][] {
+  const rings: [number, number][][] = [];
+  for (const f of features) {
+    if (!f.geometry) continue;
+    let coords: number[][];
+    const geo = f.geometry;
+    if (geo.type === 'Polygon' && Array.isArray(geo.coordinates[0]) && Array.isArray((geo.coordinates[0] as number[][])[0])) {
+      coords = geo.coordinates[0] as number[][];
+    } else if (geo.type === 'LineString') {
+      coords = geo.coordinates as number[][];
+    } else {
+      continue;
+    }
+    if (coords.length < 4) continue;
+    const cx = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+    const cy = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+    if (haversineKm(centerLat, centerLon, cy, cx) > maxKm) continue;
+    const step = Math.max(1, Math.floor(coords.length / 30));
+    const ring: [number, number][] = [];
+    for (let i = 0; i < coords.length; i += step) ring.push([coords[i][0], coords[i][1]]);
+    if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
+      ring.push(ring[0]);
+    }
+    if (ring.length >= 4) rings.push(ring);
+  }
+  return rings;
+}

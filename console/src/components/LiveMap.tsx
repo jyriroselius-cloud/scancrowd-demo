@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Map as MLMap, ExpressionSpecification } from 'maplibre-gl';
 import type { Issue, StreetPoint } from '@shared/types';
-import { extractStreets } from '@shared/extractStreets';
+import { extractStreets, extractWaterPolygons } from '@shared/extractStreets';
 import { FallbackMap } from './FallbackMap';
 
 const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
@@ -23,7 +23,7 @@ interface Props {
    *  'main' also sets legacy window.__scanMap / __scanMapSrcId / __scanMapIdle. */
   instanceKey?: string;
   onClickIssue?: (issue: Issue) => void;
-  onStreetsReady?: (streets: StreetPoint[]) => void;
+  onStreetsReady?: (streets: StreetPoint[], waterPolygons: [number, number][][]) => void;
 }
 
 function toGeoJSON(issues: Issue[]) {
@@ -68,6 +68,8 @@ function updateProxy(map: MLMap, iss: Issue[]) {
       const span = document.createElement('span');
       span.setAttribute('data-testid', 'map-pin');
       span.setAttribute('data-id', String(i.id));
+      span.setAttribute('data-lat', String(i.lat));
+      span.setAttribute('data-lon', String(i.lon));
       return span;
     }),
   );
@@ -87,8 +89,8 @@ function rebuildSource(map: MLMap, iss: Issue[], oldSrcId: string | null): strin
     type: 'geojson',
     data: geojson,
     cluster: true,
-    clusterMaxZoom: 14,
-    clusterRadius: 36,
+    clusterMaxZoom: 13,
+    clusterRadius: 40,
     // Accumulate per-status counts so cluster color reflects dominant status.
     clusterProperties: {
       cnt_new:      ['+', ['case', ['==', ['get', 'status'], 'New'],       1, 0]],
@@ -315,9 +317,13 @@ export function LiveMap({
                 sourceLayer: 'transportation_name',
               }) as unknown as Parameters<typeof extractStreets>[0];
               const streets = extractStreets(feats, centerLat, centerLon);
+              const waterFeats = map.querySourceFeatures('openmaptiles', {
+                sourceLayer: 'water',
+              }) as unknown as Parameters<typeof extractWaterPolygons>[0];
+              const waterPolygons = extractWaterPolygons(waterFeats, centerLat, centerLon);
               if (streets.length >= 3) {
                 streetsReadyRef.current = true;
-                onStreetsReady(streets);
+                onStreetsReady(streets, waterPolygons);
               }
             } catch { /* ignore */ }
           }
