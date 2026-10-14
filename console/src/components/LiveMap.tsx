@@ -185,6 +185,7 @@ export function LiveMap({
   const [failed, setFailed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const streetsReadyRef = useRef(false);
+  const retryRef = useRef(0);
 
   issuesRef.current = issues;
   onClickRef.current = onClickIssue;
@@ -214,26 +215,33 @@ export function LiveMap({
     streetsReadyRef.current = false;
     setMapReady(false);
 
-    // Visibility-aware timeout: pause while tab is hidden, reset clock on becoming visible.
+    // Visibility-aware timeout:
+    // - No timeout at all while the tab is hidden.
+    // - A fresh 12 s clock starts every time the tab becomes visible.
+    // - If the tab hides again, the clock stops immediately.
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let remaining = 12000;
-    let hiddenAt: number | null = null;
 
-    function scheduleTimeout() {
+    function startVisibleTimeout() {
       if (timeoutId) clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => { if (!cancelled) setFailed(true); }, remaining);
+      if (!document.hidden && !cancelled && !mapReadyRef.current) {
+        timeoutId = setTimeout(() => {
+          // Safety net: only fail if still visible when the clock expires.
+          if (!cancelled && !document.hidden) setFailed(true);
+        }, 12000);
+      }
     }
-    scheduleTimeout();
+
+    // Start the clock only when already visible; no-op when hidden.
+    startVisibleTimeout();
 
     const onVisibility = () => {
       if (document.hidden) {
-        hiddenAt = Date.now();
+        // Tab hidden → stop the clock.
         if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
-      } else if (hiddenAt !== null) {
-        remaining = Math.max(0, remaining - (Date.now() - hiddenAt));
-        hiddenAt = null;
-        if (!mapReadyRef.current) {
-          scheduleTimeout();
+      } else {
+        // Tab visible → fresh 12 s clock + resize map canvas.
+        if (!mapReadyRef.current && !cancelled) {
+          startVisibleTimeout();
           mapRef.current?.resize();
         }
       }
@@ -270,7 +278,14 @@ export function LiveMap({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const msg = String((e as any).error?.message ?? '').toLowerCase();
         console.error('[LiveMap] map error:', msg, e);
-        if (msg.includes('webgl') || msg.includes('context lost')) setFailed(true);
+        if (msg.includes('webgl') || msg.includes('context lost')) {
+          // WebGL failure is always fatal regardless of visibility.
+          setFailed(true);
+        } else if (!document.hidden) {
+          // Other errors (network, style) only trigger fallback when visible.
+          // Errors while hidden are silently ignored — the map will retry on visibility.
+          setFailed(true);
+        }
       });
 
       map.on('load', () => {
@@ -372,6 +387,22 @@ export function LiveMap({
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [centerLat, centerLon, zoom, failed]);
+
+  // ── Effect: recovery — if fallback shown and tab becomes visible, retry once ─
+  useEffect(() => {
+    if (!failed) return;
+    if (retryRef.current >= 1) return;
+
+    const onVisible = () => {
+      if (!document.hidden) {
+        document.removeEventListener('visibilitychange', onVisible);
+        retryRef.current++;
+        setFailed(false); // re-triggers Effect 1 with failed=false
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [failed]);
 
   // ── Effect 2: rebuild source+layers when filtered issues change ───────────
   useEffect(() => {
