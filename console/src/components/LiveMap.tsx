@@ -214,7 +214,31 @@ export function LiveMap({
     streetsReadyRef.current = false;
     setMapReady(false);
 
-    const initTimeout = setTimeout(() => setFailed(true), 12000);
+    // Visibility-aware timeout: pause while tab is hidden, reset clock on becoming visible.
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let remaining = 12000;
+    let hiddenAt: number | null = null;
+
+    function scheduleTimeout() {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => { if (!cancelled) setFailed(true); }, remaining);
+    }
+    scheduleTimeout();
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+      } else if (hiddenAt !== null) {
+        remaining = Math.max(0, remaining - (Date.now() - hiddenAt));
+        hiddenAt = null;
+        if (!mapReadyRef.current) {
+          scheduleTimeout();
+          mapRef.current?.resize();
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
 
     // ResizeObserver — keeps the map canvas in sync with its flex container.
     const ro = new ResizeObserver(() => {
@@ -250,7 +274,7 @@ export function LiveMap({
       });
 
       map.on('load', () => {
-        clearTimeout(initTimeout);
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
         map.resize();
 
         map.on('mouseenter', 'clusters', () => { map.getCanvas().style.cursor = 'pointer'; });
@@ -331,14 +355,15 @@ export function LiveMap({
       });
     }).catch((err) => {
       console.error('[LiveMap] import error:', err);
-      clearTimeout(initTimeout);
+      if (timeoutId) clearTimeout(timeoutId);
       setFailed(true);
     });
 
     return () => {
       cancelled = true;
       ro.disconnect();
-      clearTimeout(initTimeout);
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (timeoutId) clearTimeout(timeoutId);
       map?.remove();
       mapRef.current = null;
       srcIdRef.current = null;

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { generateData } from '@shared/generator';
-import { findCity, defaultCity, CITIES } from '@shared/cities/index';
+import { defaultCity, CITIES } from '@shared/cities/index';
 import { locationSeed } from '@shared/locationSeed';
 import type { CityData, AppSettings } from '@shared/types';
 import type { GeneratedData, Issue, StreetPoint } from '@shared/types';
@@ -31,19 +31,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   ],
 };
 
-function parseParams(): { cityName: string; lat?: number; lon?: number; customName?: string; seed?: number } {
+function parseParams(): { seed?: number } {
   const p = new URLSearchParams(window.location.search);
   const seed = p.has('seed') ? parseInt(p.get('seed')!, 10) : undefined;
-  if (p.has('lat') && p.has('lon')) {
-    return {
-      cityName: p.get('name') ?? 'Custom',
-      lat: parseFloat(p.get('lat')!),
-      lon: parseFloat(p.get('lon')!),
-      customName: p.get('name') ?? 'Custom',
-      seed,
-    };
-  }
-  return { cityName: p.get('city') ?? '', seed };
+  // ?city and ?lat/lon/name params silently ignored — always use Tampere
+  return { seed };
 }
 
 export function App() {
@@ -51,15 +43,7 @@ export function App() {
   const seedRef = useRef<number | undefined>(params.seed);
   const streetsAppliedRef = useRef(false);
 
-  const hasUrlOverride = params.lat !== undefined || params.cityName !== '';
-
-  const initialCity: CityData = useMemo(() => {
-    if (params.lat !== undefined && params.lon !== undefined) {
-      return { name: params.customName!, lat: params.lat!, lon: params.lon!, streets: [] };
-    }
-    if (params.cityName) return findCity(params.cityName) ?? defaultCity();
-    return defaultCity();
-  }, [params]);
+  const initialCity: CityData = defaultCity();
 
   const [cityData, setCityData] = useState<CityData>(initialCity);
   const [data, setData] = useState<GeneratedData>(() => generateData(initialCity, params.seed));
